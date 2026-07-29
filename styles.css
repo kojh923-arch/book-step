@@ -74,6 +74,18 @@ h3 { font-size: 18px; letter-spacing: -.04em; margin-bottom: 6px; }
 .field.full { grid-column: 1 / -1; }
 .field label { font-weight: 800; font-size: 14px; }
 .field input, .field textarea { width: 100%; border: 2px solid var(--line); background: #f5fbff; border-radius: 14px; padding: 12px 14px; color: var(--ink); outline: 0; }
+.book-search-input { display: flex; gap: 8px; align-items: stretch; }
+.book-search-input input { min-width: 0; }
+.book-search-input .secondary-button { flex: none; white-space: nowrap; }
+.book-search-results { display: grid; gap: 7px; margin-top: 10px; }
+.book-result { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px; border: 1px solid var(--line); border-radius: 13px; background: #fff; color: var(--ink); text-align: left; }
+.book-result:hover { border-color: var(--blue); background: #f7fbff; }
+.book-result img, .book-result-placeholder { width: 38px; height: 52px; flex: none; object-fit: cover; border-radius: 5px; background: #eaf3ff; display: grid; place-items: center; }
+.book-result span:not(.book-result-placeholder) { min-width: 0; display: grid; gap: 4px; }
+.book-result strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.book-result small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.book-result b { margin-left: auto; color: var(--blue); font-size: 12px; }
+.book-search-note { margin-top: 10px; padding: 11px 12px; border-radius: 12px; background: #f2f8ff; color: var(--muted); font-size: 13px; font-weight: 700; }
 .field input:focus, .field textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(61,107,115,.12); }
 .field textarea { min-height: 120px; resize: vertical; }
 .rating { display: flex; gap: 4px; }
@@ -159,6 +171,7 @@ h3 { font-size: 18px; letter-spacing: -.04em; margin-bottom: 6px; }
   .container { padding: 20px 16px 36px; }
   .topbar-actions .ghost-button { padding-inline: 4px; }
   .form-grid { grid-template-columns: 1fr; gap: 0; }
+  .book-search-input { display: grid; grid-template-columns: 1fr; }
   .field.full { grid-column: auto; }
   .level-row { align-items: flex-start; }
   .page-title { display: block; }
