@@ -81,6 +81,18 @@ async function saveToSupabase(record) {
   if (error) throw error;
   await loadRecords();
 }
+async function deleteRecord(recordId) {
+  if (!window.confirm('이 독서 기록을 정말 삭제할까요?\n삭제한 기록은 되돌릴 수 없어요.')) return;
+  if (sb) {
+    const { error } = await sb.from('reading_records').delete().eq('id', recordId);
+    if (error) throw error;
+    await loadRecords();
+  } else {
+    data.records = data.records.filter(record => String(record.id) !== String(recordId));
+    localSave();
+  }
+  state.selectedRecord = null;
+}
 async function registerStudent(nickname, password, classCode) {
   const response = await fetch(`${cfg.url}/functions/v1/${STUDENT_SIGNUP_FUNCTION}`, {
     method: 'POST',
@@ -98,8 +110,10 @@ function recordForm() { state.rating = 0; return layout(`<section class="page-ti
 function missionView() { return layout(`<section class="page-title"><div><p class="eyebrow">TODAY'S RANDOM MISSION</p><h1>책을 읽고, 생각을 남겨요.</h1><p class="subtitle"><strong>${esc(state.pendingBook.title)}</strong>을(를) 읽고 다음 질문에 답해 보세요.</p></div></section><section class="mission-layout"><aside class="mission-quote"><div><span class="badge">${esc(state.mission[0])}</span><div class="big" style="margin-top:26px">${esc(state.mission[1])}</div></div><button class="secondary-button" type="button" data-action="reroll">다른 미션 뽑기</button></aside><form class="form-card" id="mission-form"><div class="field"><label for="answer">나의 답변</label><textarea id="answer" required placeholder="책을 읽고 떠오른 생각을 자유롭게 적어보세요."></textarea></div><p class="notice">답변을 저장하면 독서 기록이 Supabase에 저장되고 스티커 1개를 받아요.</p><button class="primary-button" type="submit">결과를 Supabase에 저장하고 스티커 받기</button></form></section>`, 'record'); }
 function history() {
   const rows = data.records;
-  const cards = rows.map(r => `<details class="record-card"><summary><div class="record-card-top"><div class="record-book-icon">📕</div><div><strong>${esc(r.title)}</strong><span class="record-meta">${esc(r.author)} · 📅 ${esc(r.read_date || r.date)}</span></div></div><span class="record-open">자세히 보기</span></summary><div class="record-detail"><div class="record-reward-grid"><div class="record-info-box"><span>내 별점</span><strong class="record-rating">${stars(r.rating)} <small>(${r.rating}점)</small></strong></div><div class="record-info-box sticker-box"><span>스티커 획득</span><strong>완료 ⭐ (+1)</strong></div></div><article class="record-mission-card"><div class="record-mission-head"><span class="badge">${esc(r.mission_category || '랜덤 미션')}</span><span>랜덤 미션</span></div><h3>${esc(r.mission)}</h3><div class="record-answer"><span>내 답변</span><p>${esc(r.answer)}</p></div></article></div></details>`).join('');
-  return layout(`<section class="page-title"><div><p class="eyebrow">SAVED HISTORY</p><h1>저장 내역</h1><p class="subtitle">책을 누르면 미션과 나의 답변을 자세히 볼 수 있어요.</p></div><button class="secondary-button" data-action="refresh">새로고침</button></section><section class="panel">${rows.length ? `<div class="record-list record-card-list">${cards}</div>` : '<div class="empty">아직 저장된 독서 기록이 없어요. 첫 책을 기록해 보세요!</div>'}</section>`, 'history');
+  const cards = rows.map(r => `<button class="record-card" data-action="open-record" data-record-id="${esc(r.id)}"><span class="record-card-top"><span class="record-book-icon">📕</span><span><strong>${esc(r.title)}</strong><span class="record-meta">${esc(r.author)} · 📅 ${esc(r.read_date || r.date)}</span></span></span><span class="record-open">자세히 보기</span></button>`).join('');
+  const r = state.selectedRecord;
+  const modal = r ? `<div class="record-modal-backdrop" data-action="close-record"><section class="record-modal" role="dialog" aria-modal="true" aria-label="독서 기록 상세"><button class="modal-close" data-action="close-record" aria-label="닫기">×</button><div class="modal-book-head"><div class="record-book-icon">📕</div><div><h2>${esc(r.title)}</h2><span class="record-meta">${esc(r.author)} · 📅 ${esc(r.read_date || r.date)}</span></div></div><div class="record-reward-grid"><div class="record-info-box"><span>내 별점</span><strong class="record-rating">${stars(r.rating)} <small>(${r.rating}점)</small></strong></div><div class="record-info-box sticker-box"><span>스티커 획득</span><strong>완료 ⭐ (+1)</strong></div></div><article class="record-mission-card"><div class="record-mission-head"><span class="badge">${esc(r.mission_category || '랜덤 미션')}</span><span>랜덤 미션</span></div><h3>${esc(r.mission)}</h3><div class="record-answer"><span>내 답변</span><p>${esc(r.answer)}</p></div></article><div class="modal-actions"><button class="delete-record-button" data-action="delete-record" data-record-id="${esc(r.id)}">🗑 기록 삭제</button><button class="primary-button" data-action="close-record">닫기</button></div></section></div>` : '';
+  return layout(`<section class="page-title"><div><p class="eyebrow">SAVED HISTORY</p><h1>저장 내역</h1><p class="subtitle">책을 누르면 미션과 나의 답변을 자세히 볼 수 있어요.</p></div><button class="secondary-button" data-action="refresh">새로고침</button></section><section class="panel">${rows.length ? `<div class="record-list record-card-list">${cards}</div>` : '<div class="empty">아직 저장된 독서 기록이 없어요. 첫 책을 기록해 보세요!</div>'}</section>${modal}`, 'history');
 }
 function growth() {
   const lv = level();
@@ -130,8 +144,11 @@ function startMission(form) {
 
 document.addEventListener('click', async e => {
   const view = e.target.closest('[data-view]')?.dataset.view;
-  if (view) { state.view = view; state.pendingBook = null; state.mission = null; render(); return; }
+  if (view) { state.view = view; state.pendingBook = null; state.mission = null; state.selectedRecord = null; render(); return; }
   const action = e.target.closest('[data-action]')?.dataset.action;
+  if (action === 'open-record') { const id = e.target.closest('[data-record-id]')?.dataset.recordId; state.selectedRecord = data.records.find(record => String(record.id) === String(id)) || null; render(); return; }
+  if (action === 'close-record') { if (e.target === e.currentTarget || e.target.closest('[data-action="close-record"]')) { state.selectedRecord = null; render(); } return; }
+  if (action === 'delete-record') { const id = e.target.closest('[data-record-id]')?.dataset.recordId; try { await deleteRecord(id); render(); } catch (error) { alert(error.message || '기록을 삭제하지 못했어요.'); } return; }
   if (action === 'login' || action === 'signup') { state.authMode = action; state.error = ''; render(); }
   if (action === 'next-mission') { startMission(document.querySelector('#book-form')); return; }
   if (action === 'reroll') { state.mission = pickMission(); render(); }
