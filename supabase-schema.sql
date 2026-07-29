@@ -18,6 +18,15 @@ create table if not exists public.reading_records (
   created_at timestamptz not null default now()
 );
 
+-- 기존 테이블에도 닉네임 열을 안전하게 추가합니다.
+alter table public.reading_records add column if not exists student_nickname text;
+
+-- 이미 저장된 기록은 profiles 테이블의 닉네임으로 채웁니다.
+update public.reading_records r
+set student_nickname = p.nickname
+from public.profiles p
+where r.user_id = p.id and r.student_nickname is null;
+
 alter table public.profiles enable row level security;
 alter table public.reading_records enable row level security;
 

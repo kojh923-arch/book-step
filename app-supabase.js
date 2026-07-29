@@ -15,7 +15,7 @@ const cfg = window.SUPABASE_CONFIG || {};
 const supabaseReady = Boolean(cfg.url && cfg.anonKey && window.supabase);
 const sb = supabaseReady ? window.supabase.createClient(cfg.url, cfg.anonKey) : null;
 const STUDENT_SIGNUP_FUNCTION = 'quick-responder';
-const state = { view: 'home', authMode: 'login', pendingBook: null, mission: null, rating: 0, selectedRecord: null, error: '' };
+const state = { view: 'home', authMode: 'login', pendingBook: null, mission: null, rating: 0, selectedRecord: null, error: '', levelUp: null };
 let data = { nickname: '', records: [] };
 
 const esc = (v = '') => String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -25,7 +25,8 @@ const loginEmail = nickname => {
   const encoded = btoa(unescape(encodeURIComponent(nickname.trim()))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
   return `student-${encoded}@bookstep.local`;
 };
-const level = () => LEVELS.reduce((r, x) => data.records.length >= x[0] ? x : r, LEVELS[0]);
+const levelForCount = count => LEVELS.reduce((r, x) => count >= x[0] ? x : r, LEVELS[0]);
+const level = () => levelForCount(data.records.length);
 const nextLevel = () => LEVELS.find(x => x[0] > data.records.length) || LEVELS.at(-1);
 const monthCount = () => { const m = new Date().toISOString().slice(0, 7); return data.records.filter(r => String(r.read_date || r.date).startsWith(m)).length; };
 const pickMission = () => MISSIONS[Math.floor(Math.random() * MISSIONS.length)];
@@ -49,7 +50,8 @@ async function saveToSupabase(record) {
   if (!userData.user) throw new Error('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
   const { error } = await sb.from('reading_records').insert({
     user_id: userData.user.id, title: record.title, author: record.author, read_date: record.date,
-    rating: record.rating, mission_category: record.category, mission: record.mission, answer: record.answer
+    rating: record.rating, mission_category: record.category, mission: record.mission, answer: record.answer,
+    student_nickname: data.nickname
   });
   if (error) throw error;
   await loadRecords();
@@ -72,7 +74,8 @@ function missionView() { return layout(`<section class="page-title"><div><p clas
 function history() { const rows = data.records; return layout(`<section class="page-title"><div><p class="eyebrow">SAVED HISTORY</p><h1>저장 내역</h1><p class="subtitle">내가 읽고 미션을 완료한 기록을 다시 확인해요.</p></div><button class="secondary-button" data-action="refresh">새로고침</button></section><section class="panel">${rows.length ? `<div class="record-list">${rows.map(r => `<details class="record-item"><summary><div><strong>${esc(r.title)}</strong><span class="record-meta">${esc(r.author)} · ${esc(r.read_date || r.date)}</span></div><span class="record-rating">${stars(r.rating)}</span></summary><div style="padding-top:14px;color:var(--muted);line-height:1.6;font-size:14px"><strong style="color:var(--ink)">${esc(r.mission)}</strong><br>${esc(r.answer)}</div></details>`).join('')}</div>` : '<div class="empty">아직 저장된 독서 기록이 없어요. 첫 책을 기록해 보세요!</div>'}</section>`, 'history'); }
 function growth() { const lv = level(); return layout(`<section class="page-title"><div><p class="eyebrow">MY READING GROWTH</p><h1>성장 현황</h1><p class="subtitle">읽은 책과 미션 기록이 나의 성장으로 이어져요.</p></div></section><section class="panel"><div class="level-row"><div class="level-icon">${lv[2]}</div><div class="level-copy"><div class="level-title">LV.${LEVELS.indexOf(lv)} ${lv[1]}</div><p class="subtitle" style="margin:6px 0">총 ${data.records.length}권 · 스티커 ${data.records.length}개</p></div></div></section>`, 'growth'); }
 function success() { return layout(`<section class="success"><div class="sticker-pop">⭐</div><p class="eyebrow">MISSION COMPLETE</p><h2>독서 기록이 저장됐어요!</h2><p class="subtitle">스티커 1개를 받았어요.<br>다음 책도 기록해 볼까요?</p><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="record">다음 책 기록하기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></section>`, 'home'); }
-function render() { document.querySelector('#app').innerHTML = data.nickname ? (state.view === 'home' ? home() : state.view === 'record' ? (state.mission ? missionView() : recordForm()) : state.view === 'history' ? history() : state.view === 'growth' ? growth() : state.view === 'success' ? success() : home()) : auth(); }
+function levelUp() { const gained = state.levelUp || level(); const next = LEVELS.find(item => item[0] > data.records.length); const confetti = Array.from({ length: 28 }, (_, index) => `<i class="confetti-piece piece-${index % 7}" style="--delay:${(index % 7) * 0.08}s;--x:${(index * 37) % 94}%"></i>`).join(''); return layout(`<section class="level-up-card"><div class="confetti" aria-hidden="true">${confetti}</div><div class="level-up-icon">${gained[2]}</div><p class="eyebrow">LEVEL UP!</p><h1>축하해요!</h1><h2>LV.${LEVELS.indexOf(gained)} ${esc(gained[1])} 달성</h2><p class="subtitle">책 ${data.records.length}권을 읽고 미션을 완성했어요.<br>나의 독서 나무가 한 단계 자랐습니다.</p><div class="level-up-progress"><span>${next ? `다음 레벨까지 ${next[0] - data.records.length}권` : '최고 레벨 달성!'}</span></div><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="growth">성장 현황 보기</button><button class="secondary-button" data-view="record">다음 책 기록하기</button></div></section>`, 'growth'); }
+function render() { document.querySelector('#app').innerHTML = data.nickname ? (state.view === 'home' ? home() : state.view === 'record' ? (state.mission ? missionView() : recordForm()) : state.view === 'history' ? history() : state.view === 'growth' ? growth() : state.view === 'success' ? success() : state.view === 'levelup' ? levelUp() : home()) : auth(); }
 function startMission(form) {
   if (!form.reportValidity()) return;
   state.pendingBook = {
@@ -118,7 +121,15 @@ document.addEventListener('submit', async e => {
   if (e.target.id === 'mission-form') {
     const answer = document.querySelector('#answer').value.trim(); if (!answer) return;
     const record = { ...state.pendingBook, category: state.mission[0], mission: state.mission[1], answer };
-    try { await saveToSupabase(record); state.view = 'success'; state.pendingBook = null; state.mission = null; render(); } catch (err) { state.error = err.message || '저장하지 못했어요.'; alert(state.error); }
+    try {
+      const before = data.records.length;
+      await saveToSupabase(record);
+      const beforeLevel = levelForCount(before);
+      const afterLevel = level();
+      state.levelUp = LEVELS.indexOf(afterLevel) > LEVELS.indexOf(beforeLevel) ? afterLevel : null;
+      state.view = state.levelUp ? 'levelup' : 'success';
+      state.pendingBook = null; state.mission = null; render();
+    } catch (err) { state.error = err.message || '저장하지 못했어요.'; alert(state.error); }
   }
 });
 
