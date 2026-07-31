@@ -280,6 +280,8 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .hero-visual:before { border-color: rgba(255,255,255,.7); background: rgba(255,255,255,.28); }
 .hero-visual:after { width: 220px; height: 220px; background: rgba(255,255,255,.23); }
 .growth-tree { font-size: 124px; filter: drop-shadow(0 13px 12px rgba(58, 82, 139, .18)); }
+.growth-symbol { display: inline-block; line-height: 1; transform-origin: center bottom; }
+.level-up-icon .growth-symbol { transform: scale(1.08); }
 .primary-button { border-radius: 18px; background: linear-gradient(135deg, #8e83f7, #6f91f5); box-shadow: 0 9px 16px rgba(105, 115, 229, .22); }
 .primary-button:hover { background: linear-gradient(135deg, #7d72eb, #6184ec); transform: translateY(-2px) rotate(-.3deg); }
 .secondary-button { border-color: #e3d9fb; border-radius: 18px; background: #fff; }
