@@ -20,6 +20,7 @@ create table if not exists public.reading_records (
 
 -- 기존 테이블에도 닉네임 열을 안전하게 추가합니다.
 alter table public.reading_records add column if not exists student_nickname text;
+alter table public.reading_records add column if not exists cover_image text;
 
 -- 이미 저장된 기록은 profiles 테이블의 닉네임으로 채웁니다.
 update public.reading_records r
