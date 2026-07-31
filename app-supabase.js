@@ -43,17 +43,21 @@ const STUDENT_SIGNUP_FUNCTION = 'quick-responder';
 const BOOK_SEARCH_FUNCTION = 'kakao-book-search';
 const RECOMMENDATION_POOLS = {
   junior: [
-    ['강아지똥', '권정생', '작은 존재도 소중하다는 마음을 전하는 따뜻한 이야기예요.'],
-    ['알사탕', '백희나', '마음을 들여다보게 하는 상상 가득한 그림책이에요.'],
-    ['구름빵', '백희나', '구름으로 만든 빵을 먹고 하늘을 나는 즐거운 모험이에요.'],
-    ['팥죽 할멈과 호랑이', '조대인', '지혜로운 할머니와 친구들이 힘을 모으는 옛이야기예요.']
-  ],
+    '강아지똥', '알사탕', '구름빵', '팥죽 할멈과 호랑이', '무지개 물고기',
+    '장수탕 선녀님', '이상한 엄마', '수박 수영장', '도깨비를 빨아버린 우리 엄마', '돼지책',
+    '괴물들이 사는 나라', '아주아주 배고픈 애벌레', '달님 안녕', '사과가 쿵', '지하 100층짜리 집',
+    '100층짜리 집', '책 먹는 여우', '마법의 설탕 두 조각', '나쁜 어린이 표', '마당을 나온 암탉',
+    '까막눈 삼디기', '눈아이', '할머니의 여름휴가', '코끼리 아저씨와 100개의 물방울', '구름 공항',
+    '선생님은 몬스터!', '어쩌다 숲', '나무는 좋다', '커다란 순무', '세상에서 제일 힘센 수탉'
+  ].map(title => [title, '', '저학년의 상상력과 공감을 키워 주는 추천 도서예요.']),
   senior: [
-    ['시간을 파는 상점', '김선영', '시간을 사고파는 특별한 상점에서 시작되는 성장 이야기예요.'],
-    ['체리새우: 비밀글입니다', '황영미', '친구 관계와 나다운 모습에 대해 생각해 보는 청소년 소설이에요.'],
-    ['페인트', '이희영', '가족과 선택에 대해 새로운 질문을 던지는 흥미로운 이야기예요.'],
-    ['불편한 편의점', '김호연', '편의점에서 만난 사람들의 사연이 따뜻하게 이어지는 소설이에요.']
-  ]
+    '시간을 파는 상점', '체리새우: 비밀글입니다', '페인트', '불편한 편의점', '5번 레인',
+    '긴긴밤', '순례 주택', '아몬드', '완득이', '유진과 유진',
+    '너도 하늘말나리야', '세계로 가는 기차', '독고솜에게 반하면', '세계를 건너 너에게 갈게', '괭이부리말 아이들',
+    '나의 라임 오렌지나무', '모모', '해리 포터와 마법사의 돌', '호빗', '오즈의 마법사',
+    '비밀의 화원', '15소년 표류기', '로빈슨 크루소', '톰 소여의 모험', '작은 아씨들',
+    '보물섬', '파랑새', '소공녀', '몽실 언니', '우리들의 일그러진 영웅'
+  ].map(title => [title, '', '고학년이 생각을 넓히고 깊이 읽어 볼 만한 추천 도서예요.'])
 };
 const state = { view: 'home', authMode: 'login', pendingBook: null, mission: null, rating: 0, selectedRecord: null, error: '', levelUp: null, bookQuery: '', bookAuthor: '', selectedBookInfo: null, bookDescriptionExpanded: false, bookResults: [], bookSearchError: '', bookSearching: false, recommendations: [], recommendationsLoaded: false, recommendationLoading: false };
 let data = { nickname: '', records: [] };
@@ -72,8 +76,12 @@ const level = () => levelForCount(data.records.length);
 const nextLevel = () => LEVELS.find(x => x[0] > data.records.length) || LEVELS.at(-1);
 const monthCount = () => { const m = new Date().toISOString().slice(0, 7); return data.records.filter(r => String(r.read_date || r.date).startsWith(m)).length; };
 const pickMission = () => MISSIONS[Math.floor(Math.random() * MISSIONS.length)];
-const dailyNumber = text => [...text].reduce((sum, char) => ((sum * 31) + char.charCodeAt(0)) >>> 0, 7);
-const dailyRecommendationSeed = grade => RECOMMENDATION_POOLS[grade][dailyNumber(`${today()}-${grade}`) % RECOMMENDATION_POOLS[grade].length];
+const dayOfYear = date => Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(date.getFullYear(), 0, 0)) / 86400000);
+const dailyRecommendationSeed = grade => {
+  const pool = RECOMMENDATION_POOLS[grade];
+  const gradeOffset = grade === 'senior' ? 1 : 0;
+  return pool[(dayOfYear(new Date()) + gradeOffset) % pool.length];
+};
 const fallbackBookUrl = title => `https://search.daum.net/search?w=book&q=${encodeURIComponent(title)}`;
 const fallbackRecommendations = () => ['junior', 'senior'].map(grade => {
   const [title, author, description] = dailyRecommendationSeed(grade);
@@ -170,7 +178,7 @@ function homeRecommendations() {
   const cards = state.recommendationLoading || !state.recommendations.length
     ? ['junior', 'senior'].map(grade => `<article class="recommendation-card ${grade} loading"><div class="recommendation-copy"><span class="recommendation-tag">${grade === 'junior' ? '🌼 저학년 추천' : '🌿 고학년 추천'}</span><strong>오늘의 책을 고르고 있어요…</strong><p>잠시만 기다려 주세요.</p></div></article>`).join('')
     : state.recommendations.map(book => `<a class="recommendation-card ${book.grade}" href="${esc(book.url || fallbackBookUrl(book.title))}" target="_blank" rel="noopener noreferrer" aria-label="${esc(book.title)} 상세 보기"><div class="recommendation-cover">${book.image ? `<img src="${esc(book.image)}" alt="${esc(book.title)} 표지" />` : '📚'}</div><div class="recommendation-copy"><span class="recommendation-tag">${book.grade === 'junior' ? '🌼 저학년 추천' : '🌿 고학년 추천'}</span><h3>${esc(book.title)}</h3><small>${esc(book.author || '저자 정보 없음')}</small><p>${esc(book.description || '오늘 이 책을 만나 보세요.')}</p><span class="recommendation-link-note">책 자세히 보기 ↗</span></div></a>`).join('');
-  return `<section class="recommendations-section"><div class="recommendations-heading"><div><p class="eyebrow">TODAY'S BOOK PICKS</p><h2>오늘의 책 추천</h2><p class="subtitle">내 학년에 어울리는 책을 만나 보고, 읽고 싶은 책을 골라 보세요.</p></div><span class="recommendation-date">${today().replaceAll('-', '.')}</span></div><div class="recommendation-grid">${cards}</div></section>`;
+  return `<section class="recommendations-section"><div class="recommendations-heading"><div><p class="eyebrow">TODAY'S BOOK PICKS</p><h2>오늘의 책 추천</h2><p class="subtitle">나의 학년에 어울리는 책을 만나 보고, 읽고 싶은 책을 골라 보세요.</p></div><span class="recommendation-date">${today().replaceAll('-', '.')}</span></div><div class="recommendation-grid">${cards}</div></section>`;
 }
 function home() {
   const lv = level(), next = nextLevel();
