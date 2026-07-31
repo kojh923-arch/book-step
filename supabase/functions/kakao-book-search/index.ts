@@ -45,6 +45,7 @@ Deno.serve(async request => {
       publisher: stripHtml(String(book.publisher || '')),
       description: stripHtml(String(book.contents || '')),
       image: String(book.thumbnail || ''),
+      url: String(book.url || ''),
       isbn: String(book.isbn || '')
     }));
     return response({ items });

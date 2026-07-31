@@ -41,7 +41,21 @@ const supabaseReady = Boolean(cfg.url && cfg.anonKey && window.supabase);
 const sb = supabaseReady ? window.supabase.createClient(cfg.url, cfg.anonKey) : null;
 const STUDENT_SIGNUP_FUNCTION = 'quick-responder';
 const BOOK_SEARCH_FUNCTION = 'kakao-book-search';
-const state = { view: 'home', authMode: 'login', pendingBook: null, mission: null, rating: 0, selectedRecord: null, error: '', levelUp: null, bookQuery: '', bookAuthor: '', selectedBookInfo: null, bookDescriptionExpanded: false, bookResults: [], bookSearchError: '', bookSearching: false };
+const RECOMMENDATION_POOLS = {
+  junior: [
+    ['강아지똥', '권정생', '작은 존재도 소중하다는 마음을 전하는 따뜻한 이야기예요.'],
+    ['알사탕', '백희나', '마음을 들여다보게 하는 상상 가득한 그림책이에요.'],
+    ['구름빵', '백희나', '구름으로 만든 빵을 먹고 하늘을 나는 즐거운 모험이에요.'],
+    ['팥죽 할멈과 호랑이', '조대인', '지혜로운 할머니와 친구들이 힘을 모으는 옛이야기예요.']
+  ],
+  senior: [
+    ['시간을 파는 상점', '김선영', '시간을 사고파는 특별한 상점에서 시작되는 성장 이야기예요.'],
+    ['체리새우: 비밀글입니다', '황영미', '친구 관계와 나다운 모습에 대해 생각해 보는 청소년 소설이에요.'],
+    ['페인트', '이희영', '가족과 선택에 대해 새로운 질문을 던지는 흥미로운 이야기예요.'],
+    ['불편한 편의점', '김호연', '편의점에서 만난 사람들의 사연이 따뜻하게 이어지는 소설이에요.']
+  ]
+};
+const state = { view: 'home', authMode: 'login', pendingBook: null, mission: null, rating: 0, selectedRecord: null, error: '', levelUp: null, bookQuery: '', bookAuthor: '', selectedBookInfo: null, bookDescriptionExpanded: false, bookResults: [], bookSearchError: '', bookSearching: false, recommendations: [], recommendationsLoaded: false, recommendationLoading: false };
 let data = { nickname: '', records: [] };
 
 const esc = (v = '') => String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -58,6 +72,13 @@ const level = () => levelForCount(data.records.length);
 const nextLevel = () => LEVELS.find(x => x[0] > data.records.length) || LEVELS.at(-1);
 const monthCount = () => { const m = new Date().toISOString().slice(0, 7); return data.records.filter(r => String(r.read_date || r.date).startsWith(m)).length; };
 const pickMission = () => MISSIONS[Math.floor(Math.random() * MISSIONS.length)];
+const dailyNumber = text => [...text].reduce((sum, char) => ((sum * 31) + char.charCodeAt(0)) >>> 0, 7);
+const dailyRecommendationSeed = grade => RECOMMENDATION_POOLS[grade][dailyNumber(`${today()}-${grade}`) % RECOMMENDATION_POOLS[grade].length];
+const fallbackBookUrl = title => `https://search.daum.net/search?w=book&q=${encodeURIComponent(title)}`;
+const fallbackRecommendations = () => ['junior', 'senior'].map(grade => {
+  const [title, author, description] = dailyRecommendationSeed(grade);
+  return { grade, title, author, description, image: '', publisher: '', url: fallbackBookUrl(title) };
+});
 function localLoad() { try { return JSON.parse(localStorage.getItem(localKey) || 'null'); } catch { return null; } }
 function localSave() { localStorage.setItem(localKey, JSON.stringify(data)); }
 
@@ -96,18 +117,43 @@ async function deleteRecord(recordId) {
   }
   state.selectedRecord = null;
 }
-async function searchNaverBooks(query) {
+async function fetchBooks(query) {
   if (!sb) throw new Error('Supabase 연결 설정을 먼저 확인해 주세요.');
+  const { data: result, error } = await sb.functions.invoke(BOOK_SEARCH_FUNCTION, { body: { query } });
+  if (error) throw new Error(error.message || '도서를 검색하지 못했어요.');
+  return result?.items || [];
+}
+async function searchNaverBooks(query) {
   state.bookSearching = true;
   state.bookSearchError = '';
   state.selectedBookInfo = null;
   state.bookDescriptionExpanded = false;
   state.bookResults = [];
   render();
-  const { data: result, error } = await sb.functions.invoke(BOOK_SEARCH_FUNCTION, { body: { query } });
-  if (error) throw new Error(error.message || '도서를 검색하지 못했어요.');
-  state.bookResults = result?.items || [];
+  state.bookResults = await fetchBooks(query);
   if (!state.bookResults.length) state.bookSearchError = '검색 결과가 없어요. 다른 검색어를 입력해 보세요.';
+}
+async function loadHomeRecommendations() {
+  if (state.recommendationLoading || state.recommendationsLoaded) return;
+  state.recommendationLoading = true;
+  if (state.view === 'home') render();
+  try {
+    const groups = ['junior', 'senior'];
+    const recommendations = await Promise.all(groups.map(async grade => {
+      const [title, author, fallbackDescription] = dailyRecommendationSeed(grade);
+      const items = await fetchBooks(title);
+      const matched = items.find(item => item.title.replace(/\s/g, '') === title.replace(/\s/g, '')) || items[0] || {};
+      const recommendedTitle = matched.title || title;
+      return { grade, title: recommendedTitle, author: matched.author || author, description: matched.description || fallbackDescription, image: matched.image || '', publisher: matched.publisher || '', url: matched.url || fallbackBookUrl(recommendedTitle) };
+    }));
+    state.recommendations = recommendations;
+  } catch {
+    state.recommendations = fallbackRecommendations();
+  } finally {
+    state.recommendationLoading = false;
+    state.recommendationsLoaded = true;
+    if (state.view === 'home') render();
+  }
 }
 async function registerStudent(nickname, password, classCode) {
   const response = await fetch(`${cfg.url}/functions/v1/${STUDENT_SIGNUP_FUNCTION}`, {
@@ -120,10 +166,16 @@ async function registerStudent(nickname, password, classCode) {
 }
 
 function layout(content, active = 'home') { return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${esc(data.nickname)}님의 독서 기록</small></div></div><div class="topbar-actions"><button class="ghost-button" data-action="logout">로그아웃</button></div></header><nav class="nav-tabs"><button class="${active === 'home' ? 'active' : ''}" data-view="home">홈</button><button class="${active === 'record' ? 'active' : ''}" data-view="record">독서 기록</button><button class="${active === 'history' ? 'active' : ''}" data-view="history">저장 내역</button><button class="${active === 'growth' ? 'active' : ''}" data-view="growth">성장 현황</button></nav>${content}</div></div>`; }
+function homeRecommendations() {
+  const cards = state.recommendationLoading || !state.recommendations.length
+    ? ['junior', 'senior'].map(grade => `<article class="recommendation-card ${grade} loading"><div class="recommendation-copy"><span class="recommendation-tag">${grade === 'junior' ? '🌼 저학년 추천' : '🌿 고학년 추천'}</span><strong>오늘의 책을 고르고 있어요…</strong><p>잠시만 기다려 주세요.</p></div></article>`).join('')
+    : state.recommendations.map(book => `<a class="recommendation-card ${book.grade}" href="${esc(book.url || fallbackBookUrl(book.title))}" target="_blank" rel="noopener noreferrer" aria-label="${esc(book.title)} 상세 보기"><div class="recommendation-cover">${book.image ? `<img src="${esc(book.image)}" alt="${esc(book.title)} 표지" />` : '📚'}</div><div class="recommendation-copy"><span class="recommendation-tag">${book.grade === 'junior' ? '🌼 저학년 추천' : '🌿 고학년 추천'}</span><h3>${esc(book.title)}</h3><small>${esc(book.author || '저자 정보 없음')}</small><p>${esc(book.description || '오늘 이 책을 만나 보세요.')}</p><span class="recommendation-link-note">책 자세히 보기 ↗</span></div></a>`).join('');
+  return `<section class="recommendations-section"><div class="recommendations-heading"><div><p class="eyebrow">TODAY'S BOOK PICKS</p><h2>오늘의 책 추천</h2><p class="subtitle">내 학년에 어울리는 책을 만나 보고, 읽고 싶은 책을 골라 보세요.</p></div><span class="recommendation-date">${today().replaceAll('-', '.')}</span></div><div class="recommendation-grid">${cards}</div></section>`;
+}
 function home() {
   const lv = level(), next = nextLevel();
   const pct = next[0] === lv[0] ? 100 : Math.min(100, ((data.records.length - lv[0]) / (next[0] - lv[0])) * 100);
-  return layout(`<section class="hero"><div class="hero-copy"><p class="eyebrow">오늘도 독서 한 걸음</p><h1>읽은 책이<br>나의 성장으로 이어져요.</h1><p class="subtitle">책을 기록하고 랜덤 미션을 수행하면<br>나만의 독서 기록이 차곡차곡 쌓여요.</p><div class="button-row"><button class="primary-button" data-view="record">독서한걸음 기록하기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></div><div class="hero-visual"><div class="growth-tree">${levelIcon(lv)}</div><div class="hero-level-summary"><strong>LV.${LEVELS.indexOf(lv)} ${lv[1]}</strong></div></div></section><section class="stats home-stats"><div class="stat"><div class="stat-label">이번 달 읽은 권 수</div><div class="stat-value">${monthCount()}권</div><div class="stat-note">꾸준히 기록하고 있어요</div></div><div class="stat"><div class="stat-label">총 읽은 책</div><div class="stat-value">${data.records.length}권</div><div class="stat-note">다음 목표 ${next[0]}권</div></div><div class="stat"><div class="stat-label">받은 스티커</div><div class="stat-value">${data.records.length}개 ⭐</div><div class="stat-note">미션 완료 보상</div></div></section><section class="panel"><div class="level-row"><div class="level-icon">${levelIcon(lv)}</div><div class="level-copy"><div class="level-title">LV.${LEVELS.indexOf(lv)} ${lv[1]}</div><div class="progress"><span style="width:${pct}%"></span></div><div class="progress-note"><span>${data.records.length}권 읽음</span><span>${next[0] === lv[0] ? '최고 레벨!' : `다음 레벨까지 ${next[0] - data.records.length}권`}</span></div></div></div></section>`, 'home');
+  return layout(`<section class="hero"><div class="hero-copy"><p class="eyebrow">오늘도 독서 한 걸음</p><h1>읽은 책이<br>나의 성장으로 이어져요.</h1><p class="subtitle">책을 기록하고 랜덤 미션을 수행하면<br>나만의 독서 기록이 차곡차곡 쌓여요.</p><div class="button-row"><button class="primary-button" data-view="record">독서한걸음 기록하기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></div><div class="hero-visual"><div class="growth-tree">${levelIcon(lv)}</div><div class="hero-level-summary"><strong>LV.${LEVELS.indexOf(lv)} ${lv[1]}</strong></div></div></section><section class="stats home-stats"><div class="stat"><div class="stat-label">이번 달 읽은 권 수</div><div class="stat-value">${monthCount()}권</div><div class="stat-note">꾸준히 기록하고 있어요</div></div><div class="stat"><div class="stat-label">총 읽은 책</div><div class="stat-value">${data.records.length}권</div><div class="stat-note">다음 목표 ${next[0]}권</div></div><div class="stat"><div class="stat-label">받은 스티커</div><div class="stat-value">${data.records.length}개 ⭐</div><div class="stat-note">미션 완료 보상</div></div></section><section class="panel"><div class="level-row"><div class="level-icon">${levelIcon(lv)}</div><div class="level-copy"><div class="level-title">LV.${LEVELS.indexOf(lv)} ${lv[1]}</div><div class="progress"><span style="width:${pct}%"></span></div><div class="progress-note"><span>${data.records.length}권 읽음</span><span>${next[0] === lv[0] ? '최고 레벨!' : `다음 레벨까지 ${next[0] - data.records.length}권`}</span></div></div></div></section>${homeRecommendations()}`, 'home');
 }
 function auth() { return `<div class="auth-wrap"><div class="auth-card"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>읽고 기록하고 성장해요</small></div></div><p class="eyebrow">MY READING SPACE</p><h1>${state.authMode === 'signup' ? '나만의 독서 기록을 시작해요' : '독서한걸음 불러오기'}</h1><p class="subtitle">닉네임과 비밀번호만으로, 어디서든 같은 기록을 이어갈 수 있어요.</p><div class="auth-toggle"><button class="${state.authMode === 'login' ? 'active' : ''}" data-action="login">로그인</button><button class="${state.authMode === 'signup' ? 'active' : ''}" data-action="signup">회원가입</button></div><form id="auth-form"><div class="field"><label for="nickname">닉네임</label><input id="nickname" required minlength="2" maxlength="16" placeholder="예: 책을 좋아하는 지현" /></div><div class="field"><label for="password">비밀번호</label><input id="password" type="password" required minlength="6" placeholder="6자 이상 입력" /></div>${state.authMode === 'signup' ? '<div class="field"><label for="class-code">학급코드</label><input id="class-code" required maxlength="30" placeholder="선생님에게 받은 학급코드" /></div>' : ''}<div id="auth-error" class="error" role="alert">${esc(state.error)}</div><button class="primary-button" style="width:100%" type="submit">${state.authMode === 'signup' ? '회원가입하고 시작하기' : '독서한걸음 불러오기'}</button></form><p class="notice">닉네임과 비밀번호를 잊지 않도록 꼭 기억해 주세요.</p></div></div>`; }
 function recordForm() {
@@ -172,7 +224,7 @@ function startMission(form) {
 
 document.addEventListener('click', async e => {
   const view = e.target.closest('[data-view]')?.dataset.view;
-  if (view) { state.view = view; state.pendingBook = null; state.mission = null; state.selectedRecord = null; if (view === 'record') { state.rating = 0; state.bookQuery = ''; state.bookAuthor = ''; state.selectedBookInfo = null; state.bookDescriptionExpanded = false; state.bookResults = []; state.bookSearchError = ''; } render(); return; }
+  if (view) { state.view = view; state.pendingBook = null; state.mission = null; state.selectedRecord = null; if (view === 'record') { state.rating = 0; state.bookQuery = ''; state.bookAuthor = ''; state.selectedBookInfo = null; state.bookDescriptionExpanded = false; state.bookResults = []; state.bookSearchError = ''; } render(); if (view === 'home') loadHomeRecommendations(); return; }
   const action = e.target.closest('[data-action]')?.dataset.action;
   if (action === 'search-books') { const query = document.querySelector('#title').value.trim(); if (query.length < 2) { state.bookSearchError = '두 글자 이상 책 제목을 입력해 주세요.'; render(); return; } state.bookQuery = query; try { await searchNaverBooks(query); } catch (error) { state.bookSearchError = error.message || '도서를 검색하지 못했어요.'; } finally { state.bookSearching = false; render(); } return; }
   if (action === 'select-book') { const index = Number(e.target.closest('[data-book-index]')?.dataset.bookIndex); const book = state.bookResults[index]; if (book) { state.bookQuery = book.title; state.bookAuthor = book.author; state.selectedBookInfo = book; state.bookDescriptionExpanded = false; state.bookResults = []; state.bookSearchError = ''; render(); } return; }
@@ -224,4 +276,5 @@ document.addEventListener('submit', async e => {
 (async function init() {
   if (supabaseReady) { const { data: session } = await sb.auth.getSession(); if (session.session) { try { await loadProfile(session.session.user); } catch { /* 로그인 화면에서 재시도 */ } } }
   render();
+  if (data.nickname) loadHomeRecommendations();
 })();
