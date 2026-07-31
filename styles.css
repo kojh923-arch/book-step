@@ -86,6 +86,14 @@ h3 { font-size: 18px; letter-spacing: -.04em; margin-bottom: 6px; }
 .book-result small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .book-result b { margin-left: auto; color: var(--blue); font-size: 12px; }
 .book-search-note { margin-top: 10px; padding: 11px 12px; border-radius: 12px; background: #f2f8ff; color: var(--muted); font-size: 13px; font-weight: 700; }
+.selected-book-preview { display: flex; gap: 14px; align-items: flex-start; margin-top: 12px; padding: 15px; border: 1px solid #cfe4ff; border-radius: 16px; background: #f7fbff; }
+.selected-book-cover { width: 72px; height: 102px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 9px; background: #e5f0ff; font-size: 28px; }
+.selected-book-cover img { width: 100%; height: 100%; object-fit: cover; }
+.selected-book-copy { min-width: 0; }
+.selected-book-copy > span { color: var(--blue); font-size: 12px; font-weight: 800; }
+.selected-book-copy h2 { margin: 4px 0; font-size: 18px; }
+.selected-book-copy small { color: var(--muted); font-size: 12px; }
+.selected-book-copy p { display: -webkit-box; margin: 10px 0 0; overflow: hidden; color: #425675; font-size: 13px; line-height: 1.65; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .field input:focus, .field textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(61,107,115,.12); }
 .field textarea { min-height: 120px; resize: vertical; }
 .rating { display: flex; gap: 4px; }
@@ -172,6 +180,8 @@ h3 { font-size: 18px; letter-spacing: -.04em; margin-bottom: 6px; }
   .topbar-actions .ghost-button { padding-inline: 4px; }
   .form-grid { grid-template-columns: 1fr; gap: 0; }
   .book-search-input { display: grid; grid-template-columns: 1fr; }
+  .selected-book-preview { gap: 11px; padding: 12px; }
+  .selected-book-cover { width: 58px; height: 82px; }
   .field.full { grid-column: auto; }
   .level-row { align-items: flex-start; }
   .page-title { display: block; }
