@@ -247,3 +247,83 @@ h3 { font-size: 18px; letter-spacing: -.04em; margin-bottom: 6px; }
 @media (max-width: 800px) { .teacher-grid { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { .teacher-student-record { padding: 12px; gap: 10px; } .teacher-record-cover { width: 45px; height: 64px; } .teacher-student-record-head { display: block; } .teacher-student-record-head > strong { display: inline-block; margin-top: 7px; } }
 @media (max-width: 620px) { .roadmap-section { padding: 22px 16px; } .roadmap-heading { display: block; } .roadmap-total { display: inline-flex; margin-top: 12px; } .roadmap-grid { grid-template-columns: 1fr; } }
+
+/* Pastel playground preview: soft color, large curves, and friendly depth */
+:root {
+  --ink: #31415f;
+  --muted: #7f8aa3;
+  --blue: #6f80f6;
+  --blue-dark: #5969db;
+  --cream: #fffaf4;
+  --paper: rgba(255, 255, 255, .92);
+  --line: #e6ddff;
+  --yellow: #fff0b8;
+  --mint: #d8f5df;
+  --pink: #ffe2ed;
+  --teal: #59c9b6;
+  --orange: #ff9b83;
+  --shadow: 0 16px 34px rgba(113, 93, 156, .11);
+}
+
+body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 70px, transparent 71px), radial-gradient(circle at 92% 13%, rgba(201, 230, 255, .52) 0 100px, transparent 101px), linear-gradient(135deg, #fffaf4 0%, #f7f4ff 52%, #eefaff 100%); }
+.container { position: relative; }
+.brand-mark { overflow: hidden; border-radius: 16px 16px 18px 10px; background: #fff; box-shadow: 0 9px 17px rgba(102, 112, 224, .24); transform: rotate(-3deg); }
+.brand-mark img { display: block; width: 100%; height: 100%; object-fit: cover; transform: rotate(3deg) scale(1.05); }
+.topbar { margin-bottom: 28px; }
+.nav-tabs { gap: 6px; padding: 6px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .72); box-shadow: 0 7px 18px rgba(116, 98, 158, .08); }
+.nav-tabs button { border-radius: 999px; padding: 10px 16px; }
+.nav-tabs button.active { background: linear-gradient(135deg, #8e83f7, #6f91f5); box-shadow: 0 7px 13px rgba(99, 110, 220, .22); }
+.hero-copy, .hero-visual, .panel, .form-card, .auth-card { border: 1px solid rgba(220, 210, 247, .9); border-radius: 30px; }
+.hero-copy { position: relative; overflow: hidden; padding: 43px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(255,246,251,.95)); }
+.hero-copy::after { content: "✦"; position: absolute; right: 24px; top: 20px; color: #ffc763; font-size: 28px; transform: rotate(18deg); }
+.hero-visual { border-radius: 34px; background: linear-gradient(145deg, #9be0d7 0%, #9ec7fb 55%, #c7b8ff 100%); box-shadow: 0 18px 30px rgba(104, 132, 204, .18); }
+.hero-visual:before { border-color: rgba(255,255,255,.7); background: rgba(255,255,255,.28); }
+.hero-visual:after { width: 220px; height: 220px; background: rgba(255,255,255,.23); }
+.growth-tree { font-size: 124px; filter: drop-shadow(0 13px 12px rgba(58, 82, 139, .18)); }
+.primary-button { border-radius: 18px; background: linear-gradient(135deg, #8e83f7, #6f91f5); box-shadow: 0 9px 16px rgba(105, 115, 229, .22); }
+.primary-button:hover { background: linear-gradient(135deg, #7d72eb, #6184ec); transform: translateY(-2px) rotate(-.3deg); }
+.secondary-button { border-color: #e3d9fb; border-radius: 18px; background: #fff; }
+.secondary-button:hover { border-color: #bbaeff; color: #796ff1; }
+.stat { overflow: hidden; border: 0; border-radius: 24px; box-shadow: 0 10px 22px rgba(112, 93, 154, .09); }
+.stat:nth-child(1) { background: #edf7ff; border-bottom-color: #8dcbff; }
+.stat:nth-child(2) { background: #fff9df; border-bottom-color: #f8cd65; }
+.stat:nth-child(3) { background: #effbf1; border-bottom-color: #8fd8a5; }
+.stat:nth-child(4) { background: #f5f0ff; border-bottom-color: #b8a0f6; }
+.panel { background: rgba(255,255,255,.9); }
+.level-row { border-radius: 24px; background: linear-gradient(115deg, #fff4d9, #f4edff 52%, #e7fbf4); }
+.level-icon { border-color: #fff; background: #fffdf8; }
+.progress { background: #e8e2f4; }
+.progress > span { background: linear-gradient(90deg, #78cfb0, #7e8df5); }
+.form-card { background: linear-gradient(150deg, rgba(255,255,255,.96), rgba(249,246,255,.94)); }
+.field input, .field textarea { border-color: #e5dbfa; border-radius: 18px; background: rgba(255,255,255,.85); }
+.field input:focus, .field textarea:focus { border-color: #a99bf6; box-shadow: 0 0 0 4px rgba(161, 147, 245, .15); }
+.book-result, .selected-book-preview { border-color: #e6ddfb; border-radius: 18px; }
+.book-result:hover { border-color: #b7a7fb; background: #fbfaff; }
+.selected-book-preview { background: linear-gradient(135deg, #fffdf8, #f4f1ff); }
+.selected-book-cover, .record-book-icon { background: #f0e9ff; }
+.book-description-toggle { border-radius: 999px; background: #eee9ff; color: #7568e8; }
+.book-description-toggle:hover { background: #e0d8ff; }
+.mission-quote { border-radius: 30px; background: linear-gradient(145deg, #a38bf1, #718ce8); box-shadow: 0 16px 28px rgba(102, 106, 207, .18); }
+.badge { background: #ffe4a9; color: #725025; }
+.record-card { border-color: #e6ddfb; border-radius: 21px; }
+.record-card:hover { border-color: #baaafb; background: #fffdfd; transform: translateY(-2px); box-shadow: 0 10px 18px rgba(116, 96, 170, .1); }
+.record-info-box, .record-mission-card { border-color: #e5dcfb; background: #fbfaff; }
+.sticker-box { border-color: #f6d883; background: #fffbea; }
+.record-modal { border-color: #e3d9f8; border-radius: 30px; }
+.modal-close { background: #f1edff; color: #786fa1; }
+.auth-card { background: linear-gradient(145deg, #fff 0%, #fff9f2 58%, #f6f2ff 100%); }
+.auth-toggle { border-radius: 16px; background: #f0ebfb; }
+.auth-toggle button { border-radius: 12px; }
+.teacher-entry { background: linear-gradient(135deg, #9283f4, #6e90ef); }
+.teacher-entry:hover { background: linear-gradient(135deg, #7e70e8, #6284e8); }
+.teacher-record, .teacher-student-record { border-color: #e5dcf8; background: #faf8ff; }
+.roadmap-section { border-color: #e5dcf8; border-radius: 30px; background: rgba(255,255,255,.9); }
+.roadmap-card { border-color: #ebe4fa; border-radius: 21px; background: #fffefe; }
+.roadmap-icon { background: #f0eaff; }
+.roadmap-card.current { border-color: #8edab6; background: #f2fff8; }
+.roadmap-card.current .roadmap-icon { background: #dff8e9; }
+@media (max-width: 520px) {
+  .hero-copy, .hero-visual, .panel, .form-card, .auth-card { border-radius: 24px; }
+  .nav-tabs { width: 100%; overflow-x: auto; }
+  .nav-tabs button { flex: none; padding: 9px 13px; }
+}
