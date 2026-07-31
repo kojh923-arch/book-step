@@ -208,6 +208,23 @@ h3 { font-size: 18px; letter-spacing: -.04em; margin-bottom: 6px; }
 .teacher-record summary { cursor: pointer; list-style: none; }
 .teacher-record summary::-webkit-details-marker { display: none; }
 .teacher-record p { margin: 10px 0 0; font-size: 13px; line-height: 1.55; }
+.student-name-button { padding: 2px 0; border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--ink); font: inherit; font-weight: 900; cursor: pointer; }
+.student-name-button:hover { color: var(--blue); border-bottom-color: var(--blue); }
+.teacher-student-modal { width: min(720px, 100%); }
+.teacher-student-modal > h2 { margin-bottom: 4px; }
+.teacher-student-record-list { display: grid; gap: 12px; margin-top: 20px; }
+.teacher-student-record { display: flex; gap: 13px; padding: 15px; border: 1px solid #dceaf8; border-radius: 16px; background: #f8fbff; }
+.teacher-record-cover { width: 54px; height: 76px; display: grid; place-items: center; flex: none; overflow: hidden; border-radius: 9px; background: #e7f1ff; font-size: 25px; }
+.teacher-record-cover img { width: 100%; height: 100%; object-fit: cover; }
+.teacher-student-record-copy { min-width: 0; flex: 1; }
+.teacher-student-record-head { display: flex; justify-content: space-between; gap: 12px; }
+.teacher-student-record-head h3 { margin: 0 0 4px; font-size: 17px; }
+.teacher-student-record-head p { margin: 0; color: var(--muted); font-size: 12px; }
+.teacher-student-record-head > strong { color: #d09c22; font-size: 14px; white-space: nowrap; }
+.teacher-mission-answer { display: grid; gap: 5px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #dae7f4; }
+.teacher-mission-answer > span { color: var(--muted); font-size: 11px; font-weight: 800; }
+.teacher-mission-answer > b { font-size: 13px; line-height: 1.55; }
+.teacher-mission-answer > p { margin: 0; padding: 10px 12px; border-radius: 10px; background: #fff; color: var(--ink); font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
 .roadmap-section { margin-top: 24px; padding: 28px; background: var(--paper); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); }
 .roadmap-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
 .roadmap-heading h2 { margin-bottom: 8px; }
@@ -228,4 +245,5 @@ h3 { font-size: 18px; letter-spacing: -.04em; margin-bottom: 6px; }
 .roadmap-card.locked { opacity: .58; }
 .roadmap-card.locked .roadmap-icon { filter: grayscale(.45); }
 @media (max-width: 800px) { .teacher-grid { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .teacher-student-record { padding: 12px; gap: 10px; } .teacher-record-cover { width: 45px; height: 64px; } .teacher-student-record-head { display: block; } .teacher-student-record-head > strong { display: inline-block; margin-top: 7px; } }
 @media (max-width: 620px) { .roadmap-section { padding: 22px 16px; } .roadmap-heading { display: block; } .roadmap-total { display: inline-flex; margin-top: 12px; } .roadmap-grid { grid-template-columns: 1fr; } }

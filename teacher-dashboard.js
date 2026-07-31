@@ -8,6 +8,7 @@ let students = [];
 let records = [];
 let mode = 'login';
 let message = '';
+let selectedStudentId = null;
 
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -47,6 +48,19 @@ function loginScreen() {
     <p class="notice">교사 생성 코드는 최초 계정 생성 때만 필요합니다.</p></div></div>`;
 }
 
+const teacherStars = rating => '★'.repeat(Number(rating) || 0) + '☆'.repeat(Math.max(0, 5 - (Number(rating) || 0)));
+const teacherBookVisual = record => record.cover_image ? `<span class="teacher-record-cover"><img src="${escapeHtml(record.cover_image)}" alt="${escapeHtml(record.title)} 표지" /></span>` : '<span class="teacher-record-cover">📕</span>';
+
+function studentRecordModal() {
+  const student = students.find(item => item.id === selectedStudentId);
+  if (!student) return '';
+  const own = records.filter(record => record.user_id === student.id);
+  const [threshold, name] = levelName(own.length);
+  const levelNumber = [[0], [5], [10], [20], [40], [60], [80], [100], [130], [160], [200]].findIndex(item => item[0] === threshold);
+  const list = own.length ? own.map(record => `<article class="teacher-student-record">${teacherBookVisual(record)}<div class="teacher-student-record-copy"><div class="teacher-student-record-head"><div><h3>${escapeHtml(record.title)}</h3><p>${escapeHtml(record.author)} · 📅 ${escapeHtml(record.read_date)}</p></div><strong>${teacherStars(record.rating)}</strong></div><div class="teacher-mission-answer"><span>랜덤 미션</span><b>${escapeHtml(record.mission || '미션 내용 없음')}</b><span>학생 답변</span><p>${escapeHtml(record.answer || '작성한 답변이 없어요.')}</p></div></div></article>`).join('') : '<div class="empty">아직 작성한 독서 기록이 없어요.</div>';
+  return `<div class="record-modal-backdrop" data-action="close-student"><section class="record-modal teacher-student-modal" role="dialog" aria-modal="true" aria-label="학생 독서 기록"><button class="modal-close" data-action="close-student" aria-label="닫기">×</button><p class="eyebrow">STUDENT READING PORTFOLIO</p><h2>${escapeHtml(student.nickname)} 학생의 독서 기록</h2><p class="subtitle">총 ${own.length}권 · LV.${levelNumber} ${name}</p><div class="teacher-student-record-list">${list}</div><div class="modal-actions"><span></span><button class="primary-button" data-action="close-student">닫기</button></div></section></div>`;
+}
+
 function dashboardScreen() {
   const thisMonth = records.filter(record => String(record.read_date || '').startsWith(monthKey)).length;
   const completedStudents = new Set(records.map(record => record.user_id)).size;
@@ -55,13 +69,13 @@ function dashboardScreen() {
     const own = records.filter(record => record.user_id === student.id);
     const newest = own[0];
     const [threshold, name] = levelName(own.length);
-    return `<tr><td><strong>${escapeHtml(student.nickname)}</strong></td><td>${own.length}권</td><td>LV.${threshold === 0 ? 0 : [[0],[5],[10],[20],[40],[60],[80],[100],[130],[160],[200]].findIndex(item => item[0] === threshold)} ${name}</td><td>${newest ? escapeHtml(newest.title) : '<span class="record-meta">아직 기록 없음</span>'}</td></tr>`;
+    return `<tr><td><button class="student-name-button" data-action="open-student" data-student-id="${escapeHtml(student.id)}">${escapeHtml(student.nickname)}</button></td><td>${own.length}권</td><td>LV.${threshold === 0 ? 0 : [[0],[5],[10],[20],[40],[60],[80],[100],[130],[160],[200]].findIndex(item => item[0] === threshold)} ${name}</td><td>${newest ? escapeHtml(newest.title) : '<span class="record-meta">아직 기록 없음</span>'}</td></tr>`;
   }).join('');
   return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark">👩‍🏫</span><div>독서한걸음<small>${escapeHtml(teacher.nickname)} 선생님 · 학급 대시보드</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
   <section class="page-title"><div><p class="eyebrow">CLASS READING DASHBOARD</p><h1>우리 반 독서 현황</h1><p class="subtitle">학생별 독서 기록과 미션 답변을 한눈에 확인해요.</p></div><button class="secondary-button" data-action="refresh">새로고침</button></section>
   <section class="stats"><div class="stat"><div class="stat-label">등록 학생</div><div class="stat-value">${students.length}명</div><div class="stat-note">현재 학생 계정 기준</div></div><div class="stat"><div class="stat-label">이번 달 독서</div><div class="stat-value">${thisMonth}권</div><div class="stat-note">${monthKey.replace('-', '년 ')}월 기록</div></div><div class="stat"><div class="stat-label">전체 미션 완료</div><div class="stat-value">${records.length}회</div><div class="stat-note">저장된 독서 기록 수</div></div><div class="stat"><div class="stat-label">기록한 학생</div><div class="stat-value">${completedStudents}명</div><div class="stat-note">한 권 이상 기록</div></div></section>
   <section class="teacher-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">STUDENT SUMMARY</p><h2>학생별 성장 현황</h2></div></div><div class="table-wrap"><table class="teacher-table"><thead><tr><th>학생</th><th>읽은 책</th><th>현재 업적</th><th>최근 기록</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="empty">아직 가입한 학생이 없어요.</td></tr>'}</tbody></table></div></section>
-  <aside class="panel"><p class="eyebrow">RECENT RECORDS</p><h2>최근 미션 답변</h2><div class="teacher-records">${latest.length ? latest.map(record => `<details class="teacher-record"><summary><div><strong>${escapeHtml(record.student_nickname || '학생')}</strong><span class="record-meta">${escapeHtml(record.title)} · ${escapeHtml(record.read_date)}</span></div></summary><p><strong>${escapeHtml(record.mission)}</strong></p><p class="subtitle">${escapeHtml(record.answer)}</p></details>`).join('') : '<div class="empty">아직 제출된 기록이 없어요.</div>'}</div></aside></section></div></div>`;
+  <aside class="panel"><p class="eyebrow">RECENT RECORDS</p><h2>최근 미션 답변</h2><div class="teacher-records">${latest.length ? latest.map(record => `<details class="teacher-record"><summary><div><strong>${escapeHtml(record.student_nickname || '학생')}</strong><span class="record-meta">${escapeHtml(record.title)} · ${escapeHtml(record.read_date)}</span></div></summary><p><strong>${escapeHtml(record.mission)}</strong></p><p class="subtitle">${escapeHtml(record.answer)}</p></details>`).join('') : '<div class="empty">아직 제출된 기록이 없어요.</div>'}</div></aside></section>${studentRecordModal()}</div></div>`;
 }
 
 function render() { document.querySelector('#teacher-app').innerHTML = teacher ? dashboardScreen() : loginScreen(); }
@@ -82,6 +96,8 @@ document.addEventListener('click', async event => {
   const action = event.target.closest('[data-action]')?.dataset.action;
   if (action === 'logout') { await sb.auth.signOut(); teacher = null; render(); }
   if (action === 'refresh') { try { await loadDashboard(); render(); } catch (error) { alert(error.message || '대시보드를 불러오지 못했어요.'); } }
+  if (action === 'open-student') { selectedStudentId = event.target.closest('[data-student-id]')?.dataset.studentId || null; render(); }
+  if (action === 'close-student') { selectedStudentId = null; render(); }
 });
 
 document.addEventListener('submit', async event => {
