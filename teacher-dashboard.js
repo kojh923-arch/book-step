@@ -143,7 +143,8 @@ async function restoreSession() {
   if (!ready) return;
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
-  const { data: profile } = await sb.from('profiles').select('nickname,role,schools(code,name,office_code,office_name,address)').eq('id', session.user.id).maybeSingle();
+  const { data: profile, error: profileError } = await sb.from('profiles').select('nickname,role,schools(code,name,office_code,office_name,address)').eq('id', session.user.id).maybeSingle();
+  if (profileError) throw new Error('교사 정보를 불러오지 못했어요. 데이터베이스 설정(SQL)을 확인해 주세요. (' + profileError.message + ')');
   if (profile?.role !== 'teacher') { await sb.auth.signOut(); return; }
   teacher = profile;
   applyTeacherSchool(profile);
@@ -179,7 +180,8 @@ document.addEventListener('submit', async event => {
     }
     const { data, error } = await sb.auth.signInWithPassword({ email: teacherEmail(nickname), password });
     if (error) throw error;
-    const { data: profile } = await sb.from('profiles').select('nickname,role,schools(code,name,office_code,office_name,address)').eq('id', data.user.id).maybeSingle();
+    const { data: profile, error: profileError } = await sb.from('profiles').select('nickname,role,schools(code,name,office_code,office_name,address)').eq('id', data.user.id).maybeSingle();
+  if (profileError) throw new Error('교사 정보를 불러오지 못했어요. 데이터베이스 설정(SQL)을 확인해 주세요. (' + profileError.message + ')');
     if (profile?.role !== 'teacher') { await sb.auth.signOut(); throw new Error('교사용 계정으로 로그인해 주세요.'); }
     teacher = profile;
   applyTeacherSchool(profile);
