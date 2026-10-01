@@ -1,3 +1,5 @@
 work/
 outputs/
 *.zip
+
+.claude/neis.key

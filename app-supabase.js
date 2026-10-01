@@ -59,7 +59,49 @@ const RECOMMENDATION_POOLS = {
     '보물섬', '파랑새', '소공녀', '몽실 언니', '우리들의 일그러진 영웅'
   ].map(title => [title, '', '고학년이 생각을 넓히고 깊이 읽어 볼 만한 추천 도서예요.'])
 };
-const state = { view: 'home', authMode: 'login', pendingBook: null, mission: null, rating: 0, selectedRecord: null, error: '', levelUp: null, bookQuery: '', bookAuthor: '', selectedBookInfo: null, bookDescriptionExpanded: false, bookResults: [], bookSearchError: '', bookSearching: false, recommendations: [], recommendationsLoaded: false, recommendationLoading: false };
+const state = { view: 'home', authMode: 'login', pendingBook: null, mission: null, rating: 0, selectedRecord: null, error: '', levelUp: null, bookQuery: '', bookAuthor: '', selectedBookInfo: null, bookDescriptionExpanded: false, bookResults: [], bookSearchError: '', bookSearching: false, recommendations: [], recommendationsLoaded: false, recommendationLoading: false, school: null, schoolQuery: '', schoolResults: [], schoolSearching: false, schoolSearched: false, schoolError: '', schoolSample: false, grade: '', classNo: '', draft: { nickname: '', password: '', classCode: '' } };
+
+const SCHOOL_SEARCH_FUNCTION = 'neis-school-search';
+const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
+const gradeCount = () => 6;
+async function fetchSchools(query) {
+  if (isLocalHost) {
+    const res = await fetch(`/__neis?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error('학교를 검색하지 못했어요.');
+    const body = await res.json();
+    state.schoolSample = !!body.sample;
+    return body.items || [];
+  }
+  if (!sb) throw new Error('Supabase 연결 설정을 먼저 확인해 주세요.');
+  const { data: result, error } = await sb.functions.invoke(SCHOOL_SEARCH_FUNCTION, { body: { query } });
+  if (error) throw new Error(error.message || '학교를 검색하지 못했어요.');
+  return result?.items || [];
+}
+async function searchSchools() {
+  const query = document.querySelector('#school-query')?.value.trim() ?? state.schoolQuery;
+  state.schoolQuery = query;
+  if (query.length < 2) { state.schoolError = '두 글자 이상 학교 이름을 입력해 주세요.'; state.schoolResults = []; state.schoolSearched = false; render(); return; }
+  state.schoolSearching = true; state.schoolError = ''; state.schoolResults = []; render();
+  try {
+    state.schoolResults = await fetchSchools(query);
+    state.schoolSearched = true;
+  } catch (err) { state.schoolError = err.message; }
+  state.schoolSearching = false; render();
+}
+function schoolFields() {
+  const s = state.school;
+  const results = state.schoolSearching ? '<div class="book-search-note">학교를 찾고 있어요…</div>'
+    : state.schoolError ? `<div class="book-search-note error">${esc(state.schoolError)}</div>`
+    : state.schoolResults.length ? `${state.schoolSample ? '<div class="book-search-note">인증키가 없어 샘플 학교를 보여주고 있어요.</div>' : ''}<div class="book-search-results">${state.schoolResults.map((item, index) => `<button type="button" class="book-result" data-action="select-school" data-school-index="${index}"><span class="book-result-placeholder">🏫</span><span><strong>${esc(item.name)}</strong><small>${esc(item.officeName)} · ${esc(item.address || item.kind)}</small></span><b>선택</b></button>`).join('')}</div>`
+    : state.schoolSearched ? '<div class="book-search-note">검색 결과가 없어요. 학교 이름을 다시 확인해 주세요.</div>' : '';
+  const picker = s
+    ? `<div class="selected-school"><span aria-hidden="true">🏫</span><div><strong>${esc(s.name)}</strong><small>${esc(s.officeName)}</small></div><button type="button" class="ghost-button" data-action="clear-school">변경</button></div>`
+    : `<div class="school-search-row"><input id="school-query" value="${esc(state.schoolQuery)}" placeholder="예: 한걸음초등학교" autocomplete="off" /><button type="button" class="secondary-button" data-action="search-school">학교 찾기</button></div>${results}`;
+  const grades = s ? Array.from({ length: gradeCount() }, (_, i) => `<option value="${i + 1}" ${String(state.grade) === String(i + 1) ? 'selected' : ''}>${i + 1}학년</option>`).join('') : '';
+  const classes = Array.from({ length: 20 }, (_, i) => `<option value="${i + 1}" ${String(state.classNo) === String(i + 1) ? 'selected' : ''}>${i + 1}반</option>`).join('');
+  const classRow = s ? `<div class="field-row"><div class="field"><label for="grade">학년</label><select id="grade" required><option value="">선택</option>${grades}</select></div><div class="field"><label for="class-no">반</label><select id="class-no" required><option value="">선택</option>${classes}</select></div></div>` : '';
+  return `<div class="field"><label>학교</label>${picker}</div>${classRow}`;
+}
 let data = { nickname: '', records: [] };
 
 const esc = (v = '') => String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -163,11 +205,11 @@ async function loadHomeRecommendations() {
     if (state.view === 'home') render();
   }
 }
-async function registerStudent(nickname, password, classCode) {
+async function registerStudent(nickname, password, classCode, classInfo = {}) {
   const response = await fetch(`${cfg.url}/functions/v1/${STUDENT_SIGNUP_FUNCTION}`, {
     method: 'POST',
     headers: { apikey: cfg.anonKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nickname, password, classCode })
+    body: JSON.stringify({ nickname, password, classCode, ...classInfo })
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || '회원가입에 실패했어요.');
@@ -185,7 +227,7 @@ function home() {
   const pct = next[0] === lv[0] ? 100 : Math.min(100, ((data.records.length - lv[0]) / (next[0] - lv[0])) * 100);
   return layout(`<section class="hero"><div class="hero-copy"><p class="eyebrow">오늘도 독서 한 걸음</p><h1>읽은 책이<br>나의 성장으로 이어져요.</h1><p class="subtitle">책을 기록하고 랜덤 미션을 수행하면<br>나만의 독서 기록이 차곡차곡 쌓여요.</p><div class="button-row"><button class="primary-button" data-view="record">독서한걸음 기록하기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></div><div class="hero-visual"><div class="growth-tree">${levelIcon(lv)}</div><div class="hero-level-summary"><strong>LV.${LEVELS.indexOf(lv)} ${lv[1]}</strong></div></div></section><section class="stats home-stats"><div class="stat"><div class="stat-label">이번 달 읽은 권 수</div><div class="stat-value">${monthCount()}권</div><div class="stat-note">꾸준히 기록하고 있어요</div></div><div class="stat"><div class="stat-label">총 읽은 책</div><div class="stat-value">${data.records.length}권</div><div class="stat-note">다음 목표 ${next[0]}권</div></div><div class="stat"><div class="stat-label">받은 스티커</div><div class="stat-value">${data.records.length}개 ⭐</div><div class="stat-note">미션 완료 보상</div></div></section><section class="panel"><div class="level-row"><div class="level-icon">${levelIcon(lv)}</div><div class="level-copy"><div class="level-title">LV.${LEVELS.indexOf(lv)} ${lv[1]}</div><div class="progress"><span style="width:${pct}%"></span></div><div class="progress-note"><span>${data.records.length}권 읽음</span><span>${next[0] === lv[0] ? '최고 레벨!' : `다음 레벨까지 ${next[0] - data.records.length}권`}</span></div></div></div></section>${homeRecommendations()}`, 'home');
 }
-function auth() { return `<div class="auth-wrap"><div class="auth-card"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>읽고 기록하고 성장해요</small></div></div><p class="eyebrow">MY READING SPACE</p><h1>${state.authMode === 'signup' ? '나만의 독서 기록을 시작해요' : '독서한걸음 불러오기'}</h1><p class="subtitle">닉네임과 비밀번호만으로, 어디서든 같은 기록을 이어갈 수 있어요.</p><div class="auth-toggle"><button class="${state.authMode === 'login' ? 'active' : ''}" data-action="login">로그인</button><button class="${state.authMode === 'signup' ? 'active' : ''}" data-action="signup">회원가입</button></div><form id="auth-form"><div class="field"><label for="nickname">닉네임</label><input id="nickname" required minlength="2" maxlength="16" placeholder="예: 책을 좋아하는 지현" /></div><div class="field"><label for="password">비밀번호</label><input id="password" type="password" required minlength="6" placeholder="6자 이상 입력" /></div>${state.authMode === 'signup' ? '<div class="field"><label for="class-code">학급코드</label><input id="class-code" required maxlength="30" placeholder="선생님에게 받은 학급코드" /></div>' : ''}<div id="auth-error" class="error" role="alert">${esc(state.error)}</div><button class="primary-button" style="width:100%" type="submit">${state.authMode === 'signup' ? '회원가입하고 시작하기' : '독서한걸음 불러오기'}</button></form><p class="notice">닉네임과 비밀번호를 잊지 않도록 꼭 기억해 주세요.</p></div></div>`; }
+function auth() { return `<div class="auth-wrap"><div class="auth-card"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>읽고 기록하고 성장해요</small></div></div><p class="eyebrow">MY READING SPACE</p><h1>${state.authMode === 'signup' ? '나만의 독서 기록을 시작해요' : '독서한걸음 불러오기'}</h1><p class="subtitle">닉네임과 비밀번호만으로, 어디서든 같은 기록을 이어갈 수 있어요.</p><div class="auth-toggle"><button class="${state.authMode === 'login' ? 'active' : ''}" data-action="login">로그인</button><button class="${state.authMode === 'signup' ? 'active' : ''}" data-action="signup">회원가입</button></div><form id="auth-form">${state.authMode === 'signup' ? schoolFields() : ''}<div class="field"><label for="nickname">닉네임</label><input id="nickname" required minlength="2" maxlength="16" value="${esc(state.draft.nickname)}" placeholder="예: 책을 좋아하는 지현" /></div><div class="field"><label for="password">비밀번호</label><input id="password" type="password" required minlength="6" value="${esc(state.draft.password)}" placeholder="6자 이상 입력" /></div>${state.authMode === 'signup' ? '<div class="field"><label for="class-code">학급코드</label><input id="class-code" required maxlength="30" value="${esc(state.draft.classCode)}" placeholder="선생님에게 받은 학급코드" /></div>' : ''}<div id="auth-error" class="error" role="alert">${esc(state.error)}</div><button class="primary-button" style="width:100%" type="submit">${state.authMode === 'signup' ? '회원가입하고 시작하기' : '독서한걸음 불러오기'}</button></form><p class="notice">닉네임과 비밀번호를 잊지 않도록 꼭 기억해 주세요.</p></div></div>`; }
 function recordForm() {
   const results = state.bookSearching ? '<div class="book-search-note">도서를 찾고 있어요…</div>' : state.bookResults.length ? `<div class="book-search-results">${state.bookResults.map((book, index) => `<button type="button" class="book-result" data-action="select-book" data-book-index="${index}">${book.image ? `<img src="${esc(book.image)}" alt="" />` : '<span class="book-result-placeholder">📚</span>'}<span><strong>${esc(book.title)}</strong><small>${esc(book.author || '저자 정보 없음')} · ${esc(book.publisher || '출판사 정보 없음')}</small></span><b>선택</b></button>`).join('')}</div>` : state.bookSearchError ? `<div class="book-search-note error">${esc(state.bookSearchError)}</div>` : '';
   const selected = state.selectedBookInfo;
@@ -256,8 +298,9 @@ document.addEventListener('submit', async e => {
     const email = loginEmail(nickname);
     try {
       if (state.authMode === 'signup') {
+        if (!state.school) { state.error = '학교를 먼저 찾아서 선택해 주세요.'; render(); return; }
         const classCode = document.querySelector('#class-code').value.trim();
-        await registerStudent(nickname, password, classCode);
+        await registerStudent(nickname, password, classCode, { school: state.school, grade: Number(state.grade), classNo: Number(state.classNo) });
         const { data: result, error } = await sb.auth.signInWithPassword({ email, password });
         if (error) throw error;
         await loadProfile(result.user); state.view = 'home'; render(); return;
@@ -286,3 +329,24 @@ document.addEventListener('submit', async e => {
   render();
   if (data.nickname) loadHomeRecommendations();
 })();
+
+// 회원가입: 학교 찾기, 학년/반 선택
+document.addEventListener('click', e => {
+  const action = e.target.closest('[data-action]')?.dataset.action;
+  if (action === 'search-school') searchSchools();
+  if (action === 'select-school') { state.school = state.schoolResults[Number(e.target.closest('[data-school-index]').dataset.schoolIndex)]; state.grade = ''; state.classNo = ''; render(); }
+  if (action === 'clear-school') { state.school = null; state.grade = ''; state.classNo = ''; render(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.id === 'school-query' && e.key === 'Enter') { e.preventDefault(); searchSchools(); }
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'nickname') state.draft.nickname = e.target.value;
+  if (e.target.id === 'password') state.draft.password = e.target.value;
+  if (e.target.id === 'class-code') state.draft.classCode = e.target.value;
+  if (e.target.id === 'school-query') state.schoolQuery = e.target.value;
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'grade') state.grade = e.target.value;
+  if (e.target.id === 'class-no') state.classNo = e.target.value;
+});

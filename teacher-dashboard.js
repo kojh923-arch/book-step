@@ -9,6 +9,47 @@ let records = [];
 let mode = 'login';
 let message = '';
 let selectedStudentId = null;
+let classes = [];
+let overview = [];
+const classForm = { school: null, query: '', results: [], searching: false, searched: false, error: '', sample: false, grade: '', classNo: '' };
+const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
+
+async function fetchSchools(query) {
+  if (isLocalHost) {
+    const res = await fetch(`/__neis?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error('학교를 검색하지 못했어요.');
+    const body = await res.json();
+    classForm.sample = !!body.sample;
+    return body.items || [];
+  }
+  const { data: result, error } = await sb.functions.invoke('neis-school-search', { body: { query } });
+  if (error) throw new Error(error.message || '학교를 검색하지 못했어요.');
+  return result?.items || [];
+}
+async function searchSchools() {
+  const query = document.querySelector('#class-school-query')?.value.trim() ?? classForm.query;
+  classForm.query = query;
+  if (query.length < 2) { classForm.error = '두 글자 이상 학교 이름을 입력해 주세요.'; classForm.results = []; classForm.searched = false; render(); return; }
+  classForm.searching = true; classForm.error = ''; classForm.results = []; render();
+  try { classForm.results = await fetchSchools(query); classForm.searched = true; } catch (error) { classForm.error = error.message; }
+  classForm.searching = false; render();
+}
+function classPanel() {
+  const s = classForm.school;
+  const list = classes.length ? classes.map(item => `<div class="class-item"><div><strong>${escapeHtml(item.schools?.name || '')} ${item.grade}학년 ${item.class_no}반</strong><small>${item.school_year}학년도</small></div><div class="class-code"><span>학급 코드</span><b>${escapeHtml(item.join_code)}</b></div></div>`).join('') : '<div class="empty">아직 만든 학급이 없어요. 아래에서 학급을 만들어 주세요.</div>';
+  const results = classForm.searching ? '<div class="book-search-note">학교를 찾고 있어요…</div>'
+    : classForm.error ? `<div class="book-search-note error">${escapeHtml(classForm.error)}</div>`
+    : classForm.results.length ? `${classForm.sample ? '<div class="book-search-note">인증키가 없어 샘플 학교를 보여주고 있어요.</div>' : ''}<div class="book-search-results">${classForm.results.map((item, index) => `<button type="button" class="book-result" data-action="pick-school" data-school-index="${index}"><span class="book-result-placeholder">🏫</span><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.officeName)} · ${escapeHtml(item.address || item.kind)}</small></span><b>선택</b></button>`).join('')}</div>`
+    : classForm.searched ? '<div class="book-search-note">검색 결과가 없어요.</div>' : '';
+  const picker = s
+    ? `<div class="selected-school"><span aria-hidden="true">🏫</span><div><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.officeName)}</small></div><button type="button" class="ghost-button" data-action="clear-class-school">변경</button></div>`
+    : `<div class="school-search-row"><input id="class-school-query" value="${escapeHtml(classForm.query)}" placeholder="예: 한걸음초등학교" autocomplete="off" /><button type="button" class="secondary-button" data-action="search-class-school">학교 찾기</button></div>${results}`;
+  const grades = Array.from({ length: 6 }, (_, i) => `<option value="${i + 1}" ${String(classForm.grade) === String(i + 1) ? 'selected' : ''}>${i + 1}학년</option>`).join('');
+  const nos = Array.from({ length: 20 }, (_, i) => `<option value="${i + 1}" ${String(classForm.classNo) === String(i + 1) ? 'selected' : ''}>${i + 1}반</option>`).join('');
+  const overviewText = overview.length ? `<p class="subtitle">${overview.map(o => `${escapeHtml(o.school_name)} 전체: 학급 ${o.class_count}개 · 학생 ${o.student_count}명 · 이번 달 ${o.records_this_month}권`).join('<br>')}</p>` : '';
+  return `<section class="panel"><div class="panel-header"><div><p class="eyebrow">MY CLASSES</p><h2>우리 반 학급 코드</h2><p class="subtitle">학생은 학교·학년·반을 고르고 학급 코드를 입력해 가입해요.</p></div></div>${overviewText}<div class="class-list">${list}</div>
+  <form id="class-form" class="class-form"><h3>학급 만들기</h3><div class="field"><label>학교</label>${picker}</div><div class="field-row"><div class="field"><label for="class-grade">학년</label><select id="class-grade" required><option value="">선택</option>${grades}</select></div><div class="field"><label for="class-no">반</label><select id="class-no" required><option value="">선택</option>${nos}</select></div></div><button class="primary-button" type="submit">학급 만들고 코드 받기</button></form></section>`;
+}
 
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -26,8 +67,15 @@ const levelName = count => {
 };
 
 async function loadDashboard() {
+  const [{ data: classRows, error: classError }, { data: overviewRows }] = await Promise.all([
+    sb.from('classes').select('id,grade,class_no,school_year,join_code,schools(name,office_name)').order('grade').order('class_no'),
+    sb.rpc('school_overview')
+  ]);
+  if (classError) throw classError;
+  classes = classRows || [];
+  overview = overviewRows || [];
   const [{ data: profileRows, error: profileError }, { data: recordRows, error: recordError }] = await Promise.all([
-    sb.from('profiles').select('id,nickname,created_at').eq('role', 'student').order('nickname'),
+    sb.from('profiles').select('id,nickname,class_id,created_at').eq('role', 'student').order('nickname'),
     sb.from('reading_records').select('id,user_id,student_nickname,title,author,read_date,rating,mission,answer,created_at').order('created_at', { ascending: false })
   ]);
   if (profileError) throw profileError;
@@ -69,12 +117,13 @@ function dashboardScreen() {
     const own = records.filter(record => record.user_id === student.id);
     const newest = own[0];
     const [threshold, name] = levelName(own.length);
-    return `<tr><td><button class="student-name-button" data-action="open-student" data-student-id="${escapeHtml(student.id)}">${escapeHtml(student.nickname)}</button></td><td>${own.length}권</td><td>LV.${threshold === 0 ? 0 : [[0],[5],[10],[20],[40],[60],[80],[100],[130],[160],[200]].findIndex(item => item[0] === threshold)} ${name}</td><td>${newest ? escapeHtml(newest.title) : '<span class="record-meta">아직 기록 없음</span>'}</td></tr>`;
+    return `<tr><td><button class="student-name-button" data-action="open-student" data-student-id="${escapeHtml(student.id)}">${escapeHtml(student.nickname)}</button></td><td>${escapeHtml(classLabel(student.class_id))}</td><td>${own.length}권</td><td>LV.${threshold === 0 ? 0 : [[0],[5],[10],[20],[40],[60],[80],[100],[130],[160],[200]].findIndex(item => item[0] === threshold)} ${name}</td><td>${newest ? escapeHtml(newest.title) : '<span class="record-meta">아직 기록 없음</span>'}</td></tr>`;
   }).join('');
   return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${escapeHtml(teacher.nickname)} 선생님 · 학급 대시보드</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
   <section class="page-title"><div><p class="eyebrow">CLASS READING DASHBOARD</p><h1>우리 반 독서 현황</h1><p class="subtitle">학생별 독서 기록과 미션 답변을 한눈에 확인해요.</p></div><button class="secondary-button" data-action="refresh">새로고침</button></section>
+  ${classPanel()}
   <section class="stats"><div class="stat"><div class="stat-label">등록 학생</div><div class="stat-value">${students.length}명</div><div class="stat-note">현재 학생 계정 기준</div></div><div class="stat"><div class="stat-label">이번 달 독서</div><div class="stat-value">${thisMonth}권</div><div class="stat-note">${monthKey.replace('-', '년 ')}월 기록</div></div><div class="stat"><div class="stat-label">전체 미션 완료</div><div class="stat-value">${records.length}회</div><div class="stat-note">저장된 독서 기록 수</div></div><div class="stat"><div class="stat-label">기록한 학생</div><div class="stat-value">${completedStudents}명</div><div class="stat-note">한 권 이상 기록</div></div></section>
-  <section class="teacher-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">STUDENT SUMMARY</p><h2>학생별 성장 현황</h2></div></div><div class="table-wrap"><table class="teacher-table"><thead><tr><th>학생</th><th>읽은 책</th><th>현재 업적</th><th>최근 기록</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="empty">아직 가입한 학생이 없어요.</td></tr>'}</tbody></table></div></section>
+  <section class="teacher-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">STUDENT SUMMARY</p><h2>학생별 성장 현황</h2></div></div><div class="table-wrap"><table class="teacher-table"><thead><tr><th>학생</th><th>학급</th><th>읽은 책</th><th>현재 업적</th><th>최근 기록</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="empty">아직 가입한 학생이 없어요.</td></tr>'}</tbody></table></div></section>
   <aside class="panel"><p class="eyebrow">RECENT RECORDS</p><h2>최근 미션 답변</h2><div class="teacher-records">${latest.length ? latest.map(record => `<details class="teacher-record"><summary><div><strong>${escapeHtml(record.student_nickname || '학생')}</strong><span class="record-meta">${escapeHtml(record.title)} · ${escapeHtml(record.read_date)}</span></div></summary><p><strong>${escapeHtml(record.mission)}</strong></p><p class="subtitle">${escapeHtml(record.answer)}</p></details>`).join('') : '<div class="empty">아직 제출된 기록이 없어요.</div>'}</div></aside></section>${studentRecordModal()}</div></div>`;
 }
 
@@ -127,3 +176,36 @@ document.addEventListener('submit', async event => {
 });
 
 (async () => { try { await restoreSession(); } catch (error) { message = error.message || '대시보드를 준비하지 못했어요.'; } render(); })();
+
+const classLabel = classId => {
+  const item = classes.find(c => c.id === classId);
+  return item ? `${item.grade}학년 ${item.class_no}반` : '-';
+};
+
+document.addEventListener('click', async event => {
+  const action = event.target.closest('[data-action]')?.dataset.action;
+  if (action === 'search-class-school') searchSchools();
+  if (action === 'pick-school') { classForm.school = classForm.results[Number(event.target.closest('[data-school-index]').dataset.schoolIndex)]; render(); }
+  if (action === 'clear-class-school') { classForm.school = null; render(); }
+});
+document.addEventListener('keydown', event => {
+  if (event.target.id === 'class-school-query' && event.key === 'Enter') { event.preventDefault(); searchSchools(); }
+});
+document.addEventListener('input', event => { if (event.target.id === 'class-school-query') classForm.query = event.target.value; });
+document.addEventListener('change', event => {
+  if (event.target.id === 'class-grade') classForm.grade = event.target.value;
+  if (event.target.id === 'class-no') classForm.classNo = event.target.value;
+});
+document.addEventListener('submit', async event => {
+  if (event.target.id !== 'class-form') return;
+  event.preventDefault();
+  const s = classForm.school;
+  if (!s) { classForm.error = '학교를 먼저 찾아서 선택해 주세요.'; render(); return; }
+  const { error } = await sb.rpc('create_class', {
+    p_school_code: s.code, p_office_code: s.officeCode, p_office_name: s.officeName, p_school_name: s.name,
+    p_address: s.address || null, p_grade: Number(classForm.grade), p_class_no: Number(classForm.classNo)
+  });
+  if (error) { alert(error.message || '학급을 만들지 못했어요.'); return; }
+  classForm.school = null; classForm.query = ''; classForm.results = []; classForm.searched = false; classForm.grade = ''; classForm.classNo = '';
+  await loadDashboard(); render();
+});

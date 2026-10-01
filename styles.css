@@ -367,3 +367,25 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
   .recommendation-date { display: inline-flex; margin-top: 12px; }
   .recommendation-grid { grid-template-columns: 1fr; }
 }
+
+/* 가입: 학교 찾기 */
+.school-search-row { display: flex; gap: 8px; }
+.school-search-row input { flex: 1; min-width: 0; }
+.selected-school { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line, #d9e3d4); border-radius: 14px; background: #f5faf2; }
+.selected-school > div { flex: 1; min-width: 0; }
+.selected-school strong, .selected-school small { display: block; }
+.selected-school small { color: #6b7a66; }
+.field-row { display: flex; gap: 10px; }
+.field-row .field { flex: 1; min-width: 0; }
+.field select { width: 100%; padding: 12px 14px; border: 1px solid #d9e3d4; border-radius: 12px; font: inherit; background: #fff; }
+
+/* 교사: 학급 관리 */
+.class-list { display: grid; gap: 10px; margin: 14px 0 20px; }
+.class-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid #d9e3d4; border-radius: 14px; background: #f5faf2; }
+.class-item strong, .class-item small { display: block; }
+.class-item small { color: #6b7a66; }
+.class-code { text-align: right; }
+.class-code span { display: block; font-size: .75rem; color: #6b7a66; }
+.class-code b { font-size: 1.4rem; letter-spacing: .12em; }
+.class-form { display: grid; gap: 12px; }
+.class-form h3 { margin: 0; }
