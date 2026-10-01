@@ -17,13 +17,13 @@ const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
 async function fetchSchools(query) {
   if (isLocalHost) {
     const res = await fetch(`/__neis?q=${encodeURIComponent(query)}`);
-    if (!res.ok) throw new Error('학교를 검색하지 못했어요.');
-    const body = await res.json();
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || '학교를 검색하지 못했어요.');
     classForm.sample = !!body.sample;
     return body.items || [];
   }
   const { data: result, error } = await sb.functions.invoke('neis-school-search', { body: { query } });
-  if (error) throw new Error(error.message || '학교를 검색하지 못했어요.');
+  if (error) { const detail = await error.context?.json?.().catch(() => null); throw new Error(detail?.error || error.message || '학교를 검색하지 못했어요.'); }
   return result?.items || [];
 }
 async function searchSchools() {
@@ -34,6 +34,17 @@ async function searchSchools() {
   try { classForm.results = await fetchSchools(query); classForm.searched = true; } catch (error) { classForm.error = error.message; }
   classForm.searching = false; render();
 }
+function schoolPicker() {
+  const s = classForm.school;
+  const results = classForm.searching ? '<div class="book-search-note">학교를 찾고 있어요…</div>'
+    : classForm.error ? `<div class="book-search-note error">${escapeHtml(classForm.error)}</div>`
+    : classForm.results.length ? `${classForm.sample ? '<div class="book-search-note">인증키가 없어 샘플 학교를 보여주고 있어요.</div>' : ''}<div class="book-search-results">${classForm.results.map((item, index) => `<button type="button" class="book-result" data-action="pick-school" data-school-index="${index}"><span class="book-result-placeholder">🏫</span><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.officeName)} · ${escapeHtml(item.address || item.kind)}</small></span><b>선택</b></button>`).join('')}</div>`
+    : classForm.searched ? '<div class="book-search-note">검색 결과가 없어요.</div>' : '';
+  return s
+    ? `<div class="selected-school"><span aria-hidden="true">🏫</span><div><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.officeName)}</small></div><button type="button" class="ghost-button" data-action="clear-class-school">변경</button></div>`
+    : `<div class="school-search-row"><input id="class-school-query" value="${escapeHtml(classForm.query)}" placeholder="예: 한걸음초등학교" autocomplete="off" /><button type="button" class="secondary-button" data-action="search-class-school">학교 찾기</button></div>${results}`;
+}
+
 function classPanel() {
   const s = classForm.school;
   const list = classes.length ? classes.map(item => `<div class="class-item"><div><strong>${escapeHtml(item.schools?.name || '')} ${item.grade}학년 ${item.class_no}반</strong><small>${item.school_year}학년도</small></div><div class="class-code"><span>학급 코드</span><b>${escapeHtml(item.join_code)}</b></div></div>`).join('') : '<div class="empty">아직 만든 학급이 없어요. 아래에서 학급을 만들어 주세요.</div>';
@@ -41,9 +52,7 @@ function classPanel() {
     : classForm.error ? `<div class="book-search-note error">${escapeHtml(classForm.error)}</div>`
     : classForm.results.length ? `${classForm.sample ? '<div class="book-search-note">인증키가 없어 샘플 학교를 보여주고 있어요.</div>' : ''}<div class="book-search-results">${classForm.results.map((item, index) => `<button type="button" class="book-result" data-action="pick-school" data-school-index="${index}"><span class="book-result-placeholder">🏫</span><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.officeName)} · ${escapeHtml(item.address || item.kind)}</small></span><b>선택</b></button>`).join('')}</div>`
     : classForm.searched ? '<div class="book-search-note">검색 결과가 없어요.</div>' : '';
-  const picker = s
-    ? `<div class="selected-school"><span aria-hidden="true">🏫</span><div><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.officeName)}</small></div><button type="button" class="ghost-button" data-action="clear-class-school">변경</button></div>`
-    : `<div class="school-search-row"><input id="class-school-query" value="${escapeHtml(classForm.query)}" placeholder="예: 한걸음초등학교" autocomplete="off" /><button type="button" class="secondary-button" data-action="search-class-school">학교 찾기</button></div>${results}`;
+  const picker = schoolPicker();
   const grades = Array.from({ length: 6 }, (_, i) => `<option value="${i + 1}" ${String(classForm.grade) === String(i + 1) ? 'selected' : ''}>${i + 1}학년</option>`).join('');
   const nos = Array.from({ length: 20 }, (_, i) => `<option value="${i + 1}" ${String(classForm.classNo) === String(i + 1) ? 'selected' : ''}>${i + 1}반</option>`).join('');
   const overviewText = overview.length ? `<p class="subtitle">${overview.map(o => `${escapeHtml(o.school_name)} 전체: 학급 ${o.class_count}개 · 학생 ${o.student_count}명 · 이번 달 ${o.records_this_month}권`).join('<br>')}</p>` : '';
@@ -91,9 +100,9 @@ function loginScreen() {
     <div class="auth-toggle"><button class="${mode === 'login' ? 'active' : ''}" data-mode="login">로그인</button><button class="${mode === 'signup' ? 'active' : ''}" data-mode="signup">첫 교사 계정 만들기</button></div>
     <form id="teacher-auth-form"><div class="field"><label for="teacher-nickname">교사 닉네임</label><input id="teacher-nickname" required minlength="2" maxlength="16" placeholder="예: 6학년 1반 선생님" /></div>
     <div class="field"><label for="teacher-password">비밀번호</label><input id="teacher-password" type="password" required minlength="6" placeholder="6자 이상 입력" /></div>
-    ${mode === 'signup' ? '<div class="field"><label for="teacher-code">교사 생성 코드</label><input id="teacher-code" required placeholder="Supabase Secret에 정한 코드" /></div>' : ''}
+    ${mode === 'signup' ? `<div class="field"><label>근무 학교</label>${schoolPicker()}</div><div class="field"><label for="teacher-code">선생님 인증코드</label><input id="teacher-code" required placeholder="학교에서 안내받은 인증코드" autocomplete="off" /></div>` : ''}
     <div class="error">${escapeHtml(message)}</div><button class="primary-button" style="width:100%" type="submit">${mode === 'signup' ? '교사 계정 만들기' : '대시보드 열기'}</button></form>
-    <p class="notice">교사 생성 코드는 최초 계정 생성 때만 필요합니다.</p></div></div>`;
+    <p class="notice">인증코드는 최초 계정 생성 때만 필요해요. 학교를 선택하면 학급을 만들 때 자동으로 선택돼요.</p></div></div>`;
 }
 
 const teacherStars = rating => '★'.repeat(Number(rating) || 0) + '☆'.repeat(Math.max(0, 5 - (Number(rating) || 0)));
@@ -133,9 +142,10 @@ async function restoreSession() {
   if (!ready) return;
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
-  const { data: profile } = await sb.from('profiles').select('nickname,role').eq('id', session.user.id).maybeSingle();
+  const { data: profile } = await sb.from('profiles').select('nickname,role,schools(code,name,office_code,office_name,address)').eq('id', session.user.id).maybeSingle();
   if (profile?.role !== 'teacher') { await sb.auth.signOut(); return; }
   teacher = profile;
+  applyTeacherSchool(profile);
   await loadDashboard();
 }
 
@@ -158,24 +168,31 @@ document.addEventListener('submit', async event => {
   const password = document.querySelector('#teacher-password').value;
   try {
     if (mode === 'signup') {
+      if (!classForm.school) throw new Error('근무하는 학교를 먼저 찾아서 선택해 주세요.');
       const response = await fetch(`${cfg.url}/functions/v1/${TEACHER_SIGNUP_FUNCTION}`, {
         method: 'POST', headers: { apikey: cfg.anonKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nickname, password, setupCode: document.querySelector('#teacher-code').value.trim() })
+        body: JSON.stringify({ nickname, password, school: classForm.school, setupCode: document.querySelector('#teacher-code').value.trim() })
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || '교사 계정을 만들지 못했어요.');
     }
     const { data, error } = await sb.auth.signInWithPassword({ email: teacherEmail(nickname), password });
     if (error) throw error;
-    const { data: profile } = await sb.from('profiles').select('nickname,role').eq('id', data.user.id).maybeSingle();
+    const { data: profile } = await sb.from('profiles').select('nickname,role,schools(code,name,office_code,office_name,address)').eq('id', data.user.id).maybeSingle();
     if (profile?.role !== 'teacher') { await sb.auth.signOut(); throw new Error('교사용 계정으로 로그인해 주세요.'); }
     teacher = profile;
+  applyTeacherSchool(profile);
     await loadDashboard();
     render();
   } catch (error) { message = error.message || '로그인하지 못했어요.'; render(); }
 });
 
 (async () => { try { await restoreSession(); } catch (error) { message = error.message || '대시보드를 준비하지 못했어요.'; } render(); })();
+
+function applyTeacherSchool(profile) {
+  const school = profile?.schools;
+  if (school && !classForm.school) classForm.school = { code: school.code, name: school.name, officeCode: school.office_code, officeName: school.office_name, address: school.address };
+}
 
 const classLabel = classId => {
   const item = classes.find(c => c.id === classId);

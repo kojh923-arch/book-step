@@ -25,7 +25,7 @@ Deno.serve(async request => {
   if (request.method !== 'POST') return response({ error: 'POST 요청만 가능합니다.' }, 405);
 
   try {
-    const { nickname, password, setupCode } = await request.json();
+    const { nickname, password, setupCode, school } = await request.json();
     if (typeof nickname !== 'string' || nickname.trim().length < 2 || nickname.trim().length > 16) {
       return response({ error: '교사 닉네임은 2~16자로 입력해 주세요.' }, 400);
     }
@@ -35,11 +35,19 @@ Deno.serve(async request => {
     if (!Deno.env.get('TEACHER_SETUP_CODE') || setupCode !== Deno.env.get('TEACHER_SETUP_CODE')) {
       return response({ error: '교사 생성 코드를 확인해 주세요.' }, 403);
     }
+    if (typeof school?.code !== 'string' || typeof school?.name !== 'string' || typeof school?.officeCode !== 'string') {
+      return response({ error: '근무하는 학교를 선택해 주세요.' }, 400);
+    }
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+    const { error: schoolError } = await admin.from('schools').upsert({
+      code: school.code, office_code: school.officeCode, office_name: school.officeName || '', name: school.name, address: school.address || null
+    }, { onConflict: 'code', ignoreDuplicates: true });
+    if (schoolError) return response({ error: schoolError.message }, 400);
+
     const { data, error } = await admin.auth.admin.createUser({
       email: teacherEmail(nickname),
       password,
@@ -51,7 +59,8 @@ Deno.serve(async request => {
     const { error: profileError } = await admin.from('profiles').upsert({
       id: data.user.id,
       nickname: nickname.trim(),
-      role: 'teacher'
+      role: 'teacher',
+      school_code: school.code
     });
     if (profileError) return response({ error: profileError.message }, 400);
     return response({ ok: true });

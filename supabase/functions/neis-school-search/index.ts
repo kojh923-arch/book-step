@@ -34,6 +34,9 @@ Deno.serve(async request => {
     if (!neisResponse.ok) return response({ error: '학교 정보를 불러오지 못했어요.' }, 502);
 
     const result = await neisResponse.json();
+    // 인증키 오류 등은 NEIS가 RESULT 코드로 알려 줍니다. INFO-200은 검색 결과 없음입니다.
+    const code = result.RESULT?.CODE;
+    if (code && code !== 'INFO-200') return response({ error: `학교 검색 오류 (${code})`, detail: result.RESULT?.MESSAGE }, 502);
     const rows = result.schoolInfo?.[1]?.row || [];
     const items = rows.map((row: Record<string, string>) => ({
       code: row.SD_SCHUL_CODE,
