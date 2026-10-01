@@ -12,6 +12,8 @@ let selectedStudentId = null;
 const draft = { nickname: '', password: '', code: '' };
 let classes = [];
 let overview = [];
+let feedback = {};
+const feedbackDraft = {};
 const classForm = { school: null, query: '', results: [], searching: false, searched: false, error: '', sample: false, grade: '', classNo: '' };
 const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
 
@@ -92,6 +94,8 @@ async function loadDashboard() {
   if (recordError) throw recordError;
   students = profileRows || [];
   records = recordRows || [];
+  const { data: feedbackRows } = await sb.from('teacher_feedback').select('record_id,stamp,comment');
+  feedback = Object.fromEntries((feedbackRows || []).map(row => [row.record_id, row]));
 }
 
 function loginScreen() {
@@ -115,7 +119,7 @@ function studentRecordModal() {
   const own = records.filter(record => record.user_id === student.id);
   const [threshold, name] = levelName(own.length);
   const levelNumber = [[0], [5], [10], [20], [40], [60], [80], [100], [130], [160], [200]].findIndex(item => item[0] === threshold);
-  const list = own.length ? own.map(record => `<article class="teacher-student-record">${teacherBookVisual(record)}<div class="teacher-student-record-copy"><div class="teacher-student-record-head"><div><h3>${escapeHtml(record.title)}</h3><p>${escapeHtml(record.author)} · 📅 ${escapeHtml(record.read_date)}</p></div><strong>${teacherStars(record.rating)}</strong></div><div class="teacher-mission-answer"><span>랜덤 미션</span><b>${escapeHtml(record.mission || '미션 내용 없음')}</b><span>학생 답변</span><p>${escapeHtml(record.answer || '작성한 답변이 없어요.')}</p></div></div></article>`).join('') : '<div class="empty">아직 작성한 독서 기록이 없어요.</div>';
+  const list = own.length ? own.map(record => `<article class="teacher-student-record">${teacherBookVisual(record)}<div class="teacher-student-record-copy"><div class="teacher-student-record-head"><div><h3>${escapeHtml(record.title)}</h3><p>${escapeHtml(record.author)} · 📅 ${escapeHtml(record.read_date)}</p></div><strong>${teacherStars(record.rating)}</strong></div><div class="teacher-mission-answer"><span>랜덤 미션</span><b>${escapeHtml(record.mission || '미션 내용 없음')}</b><span>학생 답변</span><p>${escapeHtml(record.answer || '작성한 답변이 없어요.')}</p></div>${feedbackForm(record)}</div></article>`).join('') : '<div class="empty">아직 작성한 독서 기록이 없어요.</div>';
   return `<div class="record-modal-backdrop" data-action="close-student"><section class="record-modal teacher-student-modal" role="dialog" aria-modal="true" aria-label="학생 독서 기록"><button class="modal-close" data-action="close-student" aria-label="닫기">×</button><p class="eyebrow">STUDENT READING PORTFOLIO</p><h2>${escapeHtml(student.nickname)} 학생의 독서 기록</h2><p class="subtitle">총 ${own.length}권 · LV.${levelNumber} ${name}</p><div class="teacher-student-record-list">${list}</div><div class="modal-actions"><span></span><button class="primary-button" data-action="close-student">닫기</button></div></section></div>`;
 }
 
@@ -158,7 +162,7 @@ document.addEventListener('click', async event => {
   if (action === 'logout') { await sb.auth.signOut(); teacher = null; render(); }
   if (action === 'refresh') { try { await loadDashboard(); render(); } catch (error) { alert(error.message || '대시보드를 불러오지 못했어요.'); } }
   if (action === 'open-student') { selectedStudentId = event.target.closest('[data-student-id]')?.dataset.studentId || null; render(); }
-  if (action === 'close-student') { selectedStudentId = null; render(); }
+  if (action === 'close-student' && (event.target.classList.contains('record-modal-backdrop') || event.target.closest('button[data-action="close-student"]'))) { selectedStudentId = null; render(); }
 });
 
 document.addEventListener('submit', async event => {
@@ -235,4 +239,56 @@ document.addEventListener('submit', async event => {
   if (error) { alert(error.message || '학급을 만들지 못했어요.'); return; }
   classForm.school = null; classForm.query = ''; classForm.results = []; classForm.searched = false; classForm.grade = ''; classForm.classNo = '';
   await loadDashboard(); render();
+});
+
+// 선생님 피드백: 도장 + 한마디
+const STAMPS = ['👍', '❤️', '🌟', '👏', '🔥', '🎉'];
+function feedbackValue(recordId) {
+  return feedbackDraft[recordId] || { stamp: feedback[recordId]?.stamp || '', comment: feedback[recordId]?.comment || '' };
+}
+function feedbackForm(record) {
+  const value = feedbackValue(record.id);
+  const saved = feedback[record.id];
+  const id = escapeHtml(record.id);
+  return `<div class="feedback-form" data-feedback-record="${id}"><span class="feedback-label">선생님 도장${saved ? ' · 남긴 칭찬이 있어요' : ''}</span><div class="stamp-row">${STAMPS.map(stamp => `<button type="button" class="stamp-button${value.stamp === stamp ? ' active' : ''}" data-action="pick-stamp" data-record-id="${id}" data-stamp="${stamp}" aria-label="${stamp} 도장">${stamp}</button>`).join('')}</div><textarea class="feedback-comment" data-feedback-comment="${id}" maxlength="200" rows="2" placeholder="한마디를 남겨 주세요 (선택, 200자 이내)">${escapeHtml(value.comment)}</textarea><div class="feedback-actions"><button type="button" class="secondary-button" data-action="save-feedback" data-record-id="${id}">${saved ? '칭찬 수정하기' : '칭찬 남기기'}</button>${saved ? `<button type="button" class="ghost-button" data-action="delete-feedback" data-record-id="${id}">삭제</button>` : ''}</div></div>`;
+}
+function renderKeepModalScroll() {
+  const before = document.querySelector('.teacher-student-modal')?.scrollTop ?? 0;
+  render();
+  const modal = document.querySelector('.teacher-student-modal');
+  if (modal) modal.scrollTop = before;
+}
+document.addEventListener('input', event => {
+  const recordId = event.target.dataset?.feedbackComment;
+  if (!recordId) return;
+  feedbackDraft[recordId] = { ...feedbackValue(recordId), comment: event.target.value };
+});
+document.addEventListener('click', async event => {
+  const button = event.target.closest('[data-action][data-record-id]');
+  if (!button) return;
+  const action = button.dataset.action;
+  const recordId = button.dataset.recordId;
+  if (action === 'pick-stamp') {
+    feedbackDraft[recordId] = { ...feedbackValue(recordId), stamp: button.dataset.stamp };
+    button.closest('.stamp-row').querySelectorAll('.stamp-button').forEach(item => item.classList.toggle('active', item === button));
+  }
+  if (action === 'save-feedback') {
+    const value = feedbackValue(recordId);
+    if (!value.stamp) { alert('도장을 먼저 골라 주세요.'); return; }
+    const { data: userData } = await sb.auth.getUser();
+    const { error } = await sb.from('teacher_feedback').upsert(
+      { record_id: recordId, teacher_id: userData.user.id, stamp: value.stamp, comment: value.comment.trim() || null },
+      { onConflict: 'record_id' }
+    );
+    if (error) { alert(error.message || '칭찬을 저장하지 못했어요.'); return; }
+    delete feedbackDraft[recordId];
+    await loadDashboard(); renderKeepModalScroll();
+  }
+  if (action === 'delete-feedback') {
+    if (!confirm('남긴 칭찬을 삭제할까요?')) return;
+    const { error } = await sb.from('teacher_feedback').delete().eq('record_id', recordId);
+    if (error) { alert(error.message || '칭찬을 삭제하지 못했어요.'); return; }
+    delete feedbackDraft[recordId];
+    await loadDashboard(); renderKeepModalScroll();
+  }
 });

@@ -389,3 +389,37 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .class-code b { font-size: 1.4rem; letter-spacing: .12em; }
 .class-form { display: grid; gap: 12px; }
 .class-form h3 { margin: 0; }
+
+/* 독서 달력 · 연속 기록 · 선생님 칭찬 */
+.calendar-panel { margin-top: 18px; }
+.calendar-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.calendar-nav { display: flex; gap: 6px; }
+.calendar-nav .ghost-button[disabled] { opacity: .35; cursor: default; }
+.streak-box { display: grid; gap: 2px; margin: 12px 0 16px; padding: 12px 14px; border-radius: 14px; background: #fff6e8; }
+.streak-box strong { font-size: 1.05rem; }
+.streak-box span { color: #8a7358; font-size: .85rem; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-week { text-align: center; font-size: .75rem; color: #8a93a8; padding-bottom: 2px; }
+.cal-cell { aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; font-size: .9rem; color: #5b6478; }
+.cal-cell.empty { visibility: hidden; }
+.cal-cell.done { background: #e8f5e4; font-size: 1.1rem; }
+.cal-cell.today { outline: 2px solid #8b8cf5; }
+.cal-foot { margin: 12px 0 0; }
+.feedback-banner { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding: 14px 16px; border-radius: 16px; background: #fff0f3; border: 1px solid #ffd3dc; }
+.feedback-banner > div { flex: 1; min-width: 0; }
+.feedback-banner strong, .feedback-banner small { display: block; }
+.feedback-banner span { font-size: 1.6rem; }
+.stamp-badge { display: inline-block; margin-right: 8px; padding: 2px 8px; border-radius: 999px; background: #f1f3fb; font-size: .85rem; }
+.stamp-badge.new { background: #ffe3e8; color: #c0304f; font-weight: 700; }
+.teacher-feedback-box { display: flex; align-items: center; gap: 14px; margin: 16px 0; padding: 14px 16px; border-radius: 16px; background: #fff6e8; }
+.teacher-feedback-box .stamp-big { font-size: 2.4rem; }
+.teacher-feedback-box p { margin: 4px 0 0; }
+
+/* 교사: 도장 + 한마디 */
+.feedback-form { display: grid; gap: 8px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: #fff6e8; }
+.feedback-label { font-size: .8rem; font-weight: 700; color: #8a7358; }
+.stamp-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.stamp-button { width: 44px; height: 44px; font-size: 1.4rem; border: 2px solid transparent; border-radius: 12px; background: #fff; cursor: pointer; }
+.stamp-button.active { border-color: #8b8cf5; background: #eeeeff; }
+.feedback-comment { width: 100%; padding: 10px 12px; border: 1px solid #e6d9c2; border-radius: 12px; font: inherit; resize: vertical; box-sizing: border-box; }
+.feedback-actions { display: flex; gap: 8px; }
