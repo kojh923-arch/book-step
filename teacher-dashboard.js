@@ -9,6 +9,7 @@ let records = [];
 let mode = 'login';
 let message = '';
 let selectedStudentId = null;
+const draft = { nickname: '', password: '', code: '' };
 let classes = [];
 let overview = [];
 const classForm = { school: null, query: '', results: [], searching: false, searched: false, error: '', sample: false, grade: '', classNo: '' };
@@ -98,9 +99,9 @@ function loginScreen() {
     <p class="eyebrow">TEACHER SPACE</p><h1>${mode === 'signup' ? '교사 계정을 만들어요' : '학급 기록을 확인해요'}</h1>
     <p class="subtitle">학생의 독서 기록과 미션 답변을 한곳에서 확인할 수 있어요.</p>
     <div class="auth-toggle"><button class="${mode === 'login' ? 'active' : ''}" data-mode="login">로그인</button><button class="${mode === 'signup' ? 'active' : ''}" data-mode="signup">첫 교사 계정 만들기</button></div>
-    <form id="teacher-auth-form"><div class="field"><label for="teacher-nickname">교사 닉네임</label><input id="teacher-nickname" required minlength="2" maxlength="16" placeholder="예: 6학년 1반 선생님" /></div>
-    <div class="field"><label for="teacher-password">비밀번호</label><input id="teacher-password" type="password" required minlength="6" placeholder="6자 이상 입력" /></div>
-    ${mode === 'signup' ? `<div class="field"><label>근무 학교</label>${schoolPicker()}</div><div class="field"><label for="teacher-code">선생님 인증코드</label><input id="teacher-code" required placeholder="학교에서 안내받은 인증코드" autocomplete="off" /></div>` : ''}
+    <form id="teacher-auth-form"><div class="field"><label for="teacher-nickname">교사 닉네임</label><input id="teacher-nickname" required minlength="2" maxlength="16" value="${escapeHtml(draft.nickname)}" placeholder="예: 6학년 1반 선생님" /></div>
+    <div class="field"><label for="teacher-password">비밀번호</label><input id="teacher-password" type="password" required minlength="6" value="${escapeHtml(draft.password)}" placeholder="6자 이상 입력" /></div>
+    ${mode === 'signup' ? `<div class="field"><label>근무 학교</label>${schoolPicker()}</div><div class="field"><label for="teacher-code">선생님 인증코드</label><input id="teacher-code" required value="${escapeHtml(draft.code)}" placeholder="학교에서 안내받은 인증코드" autocomplete="off" /></div>` : ''}
     <div class="error">${escapeHtml(message)}</div><button class="primary-button" style="width:100%" type="submit">${mode === 'signup' ? '교사 계정 만들기' : '대시보드 열기'}</button></form>
     <p class="notice">인증코드는 최초 계정 생성 때만 필요해요. 학교를 선택하면 학급을 만들 때 자동으로 선택돼요.</p></div></div>`;
 }
@@ -182,6 +183,7 @@ document.addEventListener('submit', async event => {
     if (profile?.role !== 'teacher') { await sb.auth.signOut(); throw new Error('교사용 계정으로 로그인해 주세요.'); }
     teacher = profile;
   applyTeacherSchool(profile);
+    draft.nickname = draft.password = draft.code = '';
     await loadDashboard();
     render();
   } catch (error) { message = error.message || '로그인하지 못했어요.'; render(); }
@@ -208,7 +210,13 @@ document.addEventListener('click', async event => {
 document.addEventListener('keydown', event => {
   if (event.target.id === 'class-school-query' && event.key === 'Enter') { event.preventDefault(); searchSchools(); }
 });
-document.addEventListener('input', event => { if (event.target.id === 'class-school-query') classForm.query = event.target.value; });
+document.addEventListener('input', event => {
+  const id = event.target.id;
+  if (id === 'class-school-query') classForm.query = event.target.value;
+  if (id === 'teacher-nickname') draft.nickname = event.target.value;
+  if (id === 'teacher-password') draft.password = event.target.value;
+  if (id === 'teacher-code') draft.code = event.target.value;
+});
 document.addEventListener('change', event => {
   if (event.target.id === 'class-grade') classForm.grade = event.target.value;
   if (event.target.id === 'class-no') classForm.classNo = event.target.value;
