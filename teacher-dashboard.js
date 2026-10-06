@@ -13,6 +13,7 @@ const draft = { nickname: '', password: '', code: '' };
 let classes = [];
 let overview = [];
 let feedback = {};
+let challenges = {};
 const feedbackDraft = {};
 const classForm = { school: null, query: '', results: [], searching: false, searched: false, error: '', sample: false, grade: '', classNo: '' };
 const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
@@ -86,6 +87,8 @@ async function loadDashboard() {
   if (classError) throw classError;
   classes = classRows || [];
   overview = overviewRows || [];
+  const challengeResults = await Promise.all(classes.map(item => sb.rpc('challenge_status', { p_class_id: item.id })));
+  challenges = Object.fromEntries(classes.map((item, index) => [item.id, challengeResults[index].data || []]));
   const [{ data: profileRows, error: profileError }, { data: recordRows, error: recordError }] = await Promise.all([
     sb.from('profiles').select('id,nickname,class_id,created_at').eq('role', 'student').order('nickname'),
     sb.from('reading_records').select('id,user_id,student_nickname,title,author,read_date,rating,mission,answer,created_at').order('created_at', { ascending: false })
@@ -135,7 +138,7 @@ function dashboardScreen() {
   }).join('');
   return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${escapeHtml(teacher.nickname)} 선생님 · 학급 대시보드</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
   <section class="page-title"><div><p class="eyebrow">CLASS READING DASHBOARD</p><h1>우리 반 독서 현황</h1><p class="subtitle">학생별 독서 기록과 미션 답변을 한눈에 확인해요.</p></div><button class="secondary-button" data-action="refresh">새로고침</button></section>
-  ${classPanel()}
+  ${classPanel()}${challengePanel()}
   <section class="stats"><div class="stat"><div class="stat-label">등록 학생</div><div class="stat-value">${students.length}명</div><div class="stat-note">현재 학생 계정 기준</div></div><div class="stat"><div class="stat-label">이번 달 독서</div><div class="stat-value">${thisMonth}권</div><div class="stat-note">${monthKey.replace('-', '년 ')}월 기록</div></div><div class="stat"><div class="stat-label">전체 미션 완료</div><div class="stat-value">${records.length}회</div><div class="stat-note">저장된 독서 기록 수</div></div><div class="stat"><div class="stat-label">기록한 학생</div><div class="stat-value">${completedStudents}명</div><div class="stat-note">한 권 이상 기록</div></div></section>
   <section class="teacher-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">STUDENT SUMMARY</p><h2>학생별 성장 현황</h2></div></div><div class="table-wrap"><table class="teacher-table"><thead><tr><th>학생</th><th>학급</th><th>읽은 책</th><th>현재 업적</th><th>최근 기록</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="empty">아직 가입한 학생이 없어요.</td></tr>'}</tbody></table></div></section>
   <aside class="panel"><p class="eyebrow">RECENT RECORDS</p><h2>최근 미션 답변</h2><div class="teacher-records">${latest.length ? latest.map(record => `<details class="teacher-record"><summary><div><strong>${escapeHtml(record.student_nickname || '학생')}</strong><span class="record-meta">${escapeHtml(record.title)} · ${escapeHtml(record.read_date)}</span></div></summary><p><strong>${escapeHtml(record.mission)}</strong></p><p class="subtitle">${escapeHtml(record.answer)}</p></details>`).join('') : '<div class="empty">아직 제출된 기록이 없어요.</div>'}</div></aside></section>${studentRecordModal()}</div></div>`;
@@ -291,4 +294,64 @@ document.addEventListener('click', async event => {
     delete feedbackDraft[recordId];
     await loadDashboard(); renderKeepModalScroll();
   }
+});
+
+// 학급 챌린지
+function dateText(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+function challengeDefaults() {
+  const now = new Date();
+  return { classId: '', title: '', target: '', start: dateText(now), end: dateText(new Date(now.getFullYear(), now.getMonth() + 1, 0)), bonus: '3' };
+}
+const challengeForm = challengeDefaults();
+function challengeStatusText(item) {
+  const today = dateText(new Date());
+  if (item.achieved) return '🎉 달성';
+  if (item.ends_on < today) return '종료';
+  if (item.starts_on > today) return '예정';
+  return '진행 중';
+}
+function challengePanel() {
+  if (!classes.length) return '';
+  const f = challengeForm;
+  if (!f.classId || !classes.some(c => c.id === f.classId)) f.classId = classes[0].id;
+  const label = c => `${escapeHtml(c.schools?.name || '')} ${c.grade}학년 ${c.class_no}반`;
+  const options = classes.map(c => `<option value="${escapeHtml(c.id)}" ${f.classId === c.id ? 'selected' : ''}>${label(c)}</option>`).join('');
+  const lists = classes.map(c => {
+    const items = challenges[c.id] || [];
+    const body = items.length ? items.map(item => {
+      const pct = Math.min(100, Math.round((Number(item.progress) / Number(item.target_books)) * 100));
+      return `<div class="challenge-item"><div class="challenge-top"><strong>${escapeHtml(item.title)} <small>${challengeStatusText(item)}</small></strong><small>${escapeHtml(item.starts_on)} ~ ${escapeHtml(item.ends_on)}</small></div><div class="progress"><span style="width:${pct}%"></span></div><div class="progress-note"><span>${item.progress} / ${item.target_books}권 (${pct}%) · 달성 보상 ⭐+${item.bonus_stickers}</span><button type="button" class="ghost-button" data-action="delete-challenge" data-challenge-id="${escapeHtml(item.id)}">삭제</button></div></div>`;
+    }).join('') : '<div class="empty">아직 챌린지가 없어요.</div>';
+    return `<div class="challenge-class"><h3>${label(c)}</h3>${body}</div>`;
+  }).join('');
+  return `<section class="panel"><div class="panel-header"><div><p class="eyebrow">CLASS CHALLENGE</p><h2>학급 챌린지</h2><p class="subtitle">목표 권수를 정하면 학생 홈에 진행바가 보여요. 달성하면 한 권 이상 읽은 학생에게 보너스 스티커가 주어져요.</p></div></div>${lists}
+  <form id="challenge-form" class="class-form"><h3>챌린지 만들기</h3><div class="field"><label for="ch-class">학급</label><select id="ch-class">${options}</select></div><div class="field"><label for="ch-title">챌린지 이름</label><input id="ch-title" required maxlength="40" value="${escapeHtml(f.title)}" placeholder="예: 우리 반 100권 도전!" /></div><div class="field-row"><div class="field"><label for="ch-target">목표 권수</label><input id="ch-target" type="number" min="1" max="1000" required value="${escapeHtml(f.target)}" placeholder="예: 100" /></div><div class="field"><label for="ch-bonus">보너스 스티커</label><input id="ch-bonus" type="number" min="0" max="20" required value="${escapeHtml(f.bonus)}" /></div></div><div class="field-row"><div class="field"><label for="ch-start">시작일</label><input id="ch-start" type="date" required value="${escapeHtml(f.start)}" /></div><div class="field"><label for="ch-end">종료일</label><input id="ch-end" type="date" required value="${escapeHtml(f.end)}" /></div></div><button class="primary-button" type="submit">챌린지 시작하기</button></form></section>`;
+}
+document.addEventListener('input', event => {
+  const map = { 'ch-title': 'title', 'ch-target': 'target', 'ch-bonus': 'bonus', 'ch-start': 'start', 'ch-end': 'end', 'ch-class': 'classId' };
+  const key = map[event.target.id];
+  if (key) challengeForm[key] = event.target.value;
+});
+document.addEventListener('change', event => { if (event.target.id === 'ch-class') challengeForm.classId = event.target.value; });
+document.addEventListener('click', async event => {
+  const button = event.target.closest('[data-action="delete-challenge"]');
+  if (!button) return;
+  if (!confirm('이 챌린지를 삭제할까요? 학생들이 받은 보너스 스티커도 함께 사라져요.')) return;
+  const { error } = await sb.from('class_challenges').delete().eq('id', button.dataset.challengeId);
+  if (error) { alert(error.message || '챌린지를 삭제하지 못했어요.'); return; }
+  await loadDashboard(); render();
+});
+document.addEventListener('submit', async event => {
+  if (event.target.id !== 'challenge-form') return;
+  event.preventDefault();
+  const f = challengeForm;
+  if (f.end < f.start) { alert('종료일은 시작일보다 빠를 수 없어요.'); return; }
+  const { data: userData } = await sb.auth.getUser();
+  const { error } = await sb.from('class_challenges').insert({
+    class_id: f.classId, title: f.title.trim(), target_books: Number(f.target), starts_on: f.start,
+    ends_on: f.end, bonus_stickers: Number(f.bonus), created_by: userData.user.id
+  });
+  if (error) { alert(error.message || '챌린지를 만들지 못했어요.'); return; }
+  Object.assign(challengeForm, challengeDefaults(), { classId: f.classId });
+  await loadDashboard(); render();
 });

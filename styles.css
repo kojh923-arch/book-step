@@ -442,3 +442,26 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
   .calendar-panel .cal-grid { width: 100%; max-width: 260px; margin: 0 auto; }
 }
 .calendar-panel .cal-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
+/* 학급 챌린지 · 학년 랭킹 */
+.community-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; margin-top: 18px; align-items: start; }
+.community-grid .panel h2 { font-size: 1.05rem; margin: 2px 0 6px; }
+.challenge-item { padding: 12px 0; border-top: 1px solid #ece8f6; }
+.challenge-item:first-of-type { border-top: 0; }
+.challenge-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.challenge-top small { color: #8a93a8; white-space: nowrap; }
+.challenge-status { margin-top: 6px; font-size: .85rem; color: #5b6478; }
+.challenge-done { color: #2f8a4d; font-weight: 700; }
+.challenge-miss { color: #8a93a8; }
+.rank-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.rank-list li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: #f6f5fc; }
+.rank-list li.me { background: #eeeeff; outline: 2px solid #8b8cf5; }
+.rank-no { width: 34px; text-align: center; font-weight: 700; }
+.rank-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-note { margin: 8px 0 0; }
+@media (max-width: 800px) { .community-grid { grid-template-columns: 1fr; } }
+
+/* 교사: 챌린지 */
+.challenge-class { margin: 14px 0; }
+.challenge-class h3 { margin: 0 0 4px; font-size: .95rem; }
+.challenge-top strong small { margin-left: 6px; color: #6b7a66; font-weight: 600; }

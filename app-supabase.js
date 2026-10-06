@@ -102,7 +102,7 @@ function schoolFields() {
   const classRow = s ? `<div class="field-row"><div class="field"><label for="grade">학년</label><select id="grade" required><option value="">선택</option>${grades}</select></div><div class="field"><label for="class-no">반</label><select id="class-no" required><option value="">선택</option>${classes}</select></div></div>` : '';
   return `<div class="field"><label>학교</label>${picker}</div>${classRow}`;
 }
-let data = { nickname: '', records: [], feedback: {} };
+let data = { nickname: '', records: [], feedback: {}, challenges: [], ranking: [], bonus: 0 };
 
 const esc = (v = '') => String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const bookVisual = (record, className = 'record-book-icon') => record.cover_image ? `<span class="${className} record-book-cover"><img src="${esc(record.cover_image)}" alt="${esc(record.title)} 표지" /></span>` : `<span class="${className}">📕</span>`;
@@ -139,6 +139,7 @@ async function loadRecords() {
   data.records = rows || [];
   const { data: fbRows } = await sb.from('teacher_feedback').select('record_id,stamp,comment,seen_at');
   data.feedback = Object.fromEntries((fbRows || []).map(row => [row.record_id, row]));
+  await loadCommunity();
 }
 async function loadProfile(user) {
   const { data: profile } = await sb.from('profiles').select('nickname').eq('id', user.id).maybeSingle();
@@ -227,7 +228,7 @@ function homeRecommendations() {
 function home() {
   const lv = level(), next = nextLevel();
   const pct = next[0] === lv[0] ? 100 : Math.min(100, ((data.records.length - lv[0]) / (next[0] - lv[0])) * 100);
-  return layout(`<section class="hero"><div class="hero-copy"><p class="eyebrow">오늘도 독서 한 걸음</p><h1>읽은 책이<br>나의 성장으로 이어져요.</h1><p class="subtitle">책을 기록하고 랜덤 미션을 수행하면<br>나만의 독서 기록이 차곡차곡 쌓여요.</p><div class="button-row"><button class="primary-button" data-view="record">독서한걸음 기록하기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></div><div class="hero-visual"><div class="growth-tree">${levelIcon(lv)}</div><div class="hero-level-summary"><strong>LV.${LEVELS.indexOf(lv)} ${lv[1]}</strong></div></div></section><section class="stats home-stats"><div class="stat"><div class="stat-label">이번 달 읽은 권 수</div><div class="stat-value">${monthCount()}권</div><div class="stat-note">꾸준히 기록하고 있어요</div></div><div class="stat"><div class="stat-label">총 읽은 책</div><div class="stat-value">${data.records.length}권</div><div class="stat-note">다음 목표 ${next[0]}권</div></div><div class="stat"><div class="stat-label">받은 스티커</div><div class="stat-value">${data.records.length}개 ⭐</div><div class="stat-note">미션 완료 보상</div></div></section><section class="panel"><div class="level-row"><div class="level-icon">${levelIcon(lv)}</div><div class="level-copy"><div class="level-title">LV.${LEVELS.indexOf(lv)} ${lv[1]}</div><div class="progress"><span style="width:${pct}%"></span></div><div class="progress-note"><span>${data.records.length}권 읽음</span><span>${next[0] === lv[0] ? '최고 레벨!' : `다음 레벨까지 ${next[0] - data.records.length}권`}</span></div></div></div></section>${feedbackBanner()}${calendarPanel()}${homeRecommendations()}`, 'home');
+  return layout(`<section class="hero"><div class="hero-copy"><p class="eyebrow">오늘도 독서 한 걸음</p><h1>읽은 책이<br>나의 성장으로 이어져요.</h1><p class="subtitle">책을 기록하고 랜덤 미션을 수행하면<br>나만의 독서 기록이 차곡차곡 쌓여요.</p><div class="button-row"><button class="primary-button" data-view="record">독서한걸음 기록하기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></div><div class="hero-visual"><div class="growth-tree">${levelIcon(lv)}</div><div class="hero-level-summary"><strong>LV.${LEVELS.indexOf(lv)} ${lv[1]}</strong></div></div></section><section class="stats home-stats"><div class="stat"><div class="stat-label">이번 달 읽은 권 수</div><div class="stat-value">${monthCount()}권</div><div class="stat-note">꾸준히 기록하고 있어요</div></div><div class="stat"><div class="stat-label">총 읽은 책</div><div class="stat-value">${data.records.length}권</div><div class="stat-note">다음 목표 ${next[0]}권</div></div><div class="stat"><div class="stat-label">받은 스티커</div><div class="stat-value">${stickerCount()}개 ⭐</div><div class="stat-note">미션 완료 보상</div></div></section><section class="panel"><div class="level-row"><div class="level-icon">${levelIcon(lv)}</div><div class="level-copy"><div class="level-title">LV.${LEVELS.indexOf(lv)} ${lv[1]}</div><div class="progress"><span style="width:${pct}%"></span></div><div class="progress-note"><span>${data.records.length}권 읽음</span><span>${next[0] === lv[0] ? '최고 레벨!' : `다음 레벨까지 ${next[0] - data.records.length}권`}</span></div></div></div></section>${feedbackBanner()}${communityPanel()}${calendarPanel()}${homeRecommendations()}`, 'home');
 }
 function auth() { return `<div class="auth-wrap"><div class="auth-card"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>읽고 기록하고 성장해요</small></div></div><p class="eyebrow">MY READING SPACE</p><h1>${state.authMode === 'signup' ? '나만의 독서 기록을 시작해요' : '독서한걸음 불러오기'}</h1><p class="subtitle">닉네임과 비밀번호만으로, 어디서든 같은 기록을 이어갈 수 있어요.</p><div class="auth-toggle"><button class="${state.authMode === 'login' ? 'active' : ''}" data-action="login">로그인</button><button class="${state.authMode === 'signup' ? 'active' : ''}" data-action="signup">회원가입</button></div><form id="auth-form">${state.authMode === 'signup' ? schoolFields() : ''}<div class="field"><label for="nickname">닉네임</label><input id="nickname" required minlength="2" maxlength="16" value="${esc(state.draft.nickname)}" placeholder="예: 책을 좋아하는 지현" /></div><div class="field"><label for="password">비밀번호</label><input id="password" type="password" required minlength="6" value="${esc(state.draft.password)}" placeholder="6자 이상 입력" /></div>${state.authMode === 'signup' ? `<div class="field"><label for="class-code">학급코드</label><input id="class-code" required maxlength="30" value="${esc(state.draft.classCode)}" placeholder="선생님에게 받은 학급코드" /></div>` : ''}<div id="auth-error" class="error" role="alert">${esc(state.error)}</div><button class="primary-button" style="width:100%" type="submit">${state.authMode === 'signup' ? '회원가입하고 시작하기' : '독서한걸음 불러오기'}</button></form><p class="notice">닉네임과 비밀번호를 잊지 않도록 꼭 기억해 주세요.</p></div></div>`; }
 function recordForm() {
@@ -257,7 +258,7 @@ function growth() {
       : `${item[0]}권 이상 필요`;
     return `<article class="roadmap-card ${stateName}"><div class="roadmap-icon">${levelIcon(item)}</div><div class="roadmap-copy"><strong>LV.${index} ${item[1]}</strong><span>${detail}</span></div><em>${label}</em></article>`;
   }).join('');
-  return layout(`<section class="page-title"><div><p class="eyebrow">MY READING GROWTH</p><h1>성장 현황</h1><p class="subtitle">읽은 책과 미션 기록이 나의 성장으로 이어져요.</p></div></section><section class="panel"><div class="level-row"><div class="level-icon">${levelIcon(lv)}</div><div class="level-copy"><div class="level-title">LV.${currentIndex} ${lv[1]}</div><p class="subtitle" style="margin:6px 0">총 ${data.records.length}권 · 스티커 ${data.records.length}개</p></div></div></section><section class="roadmap-section"><div class="roadmap-heading"><div><p class="eyebrow">LEVEL ROADMAP</p><h2>나의 성장 레벨 로드맵</h2><p class="subtitle">독서 권수가 쌓일 때마다 나의 성장 레벨과 업적이 한 단계 높아져요!</p></div><span class="roadmap-total">현재 ${data.records.length}권</span></div><div class="roadmap-grid">${roadmap}</div></section>`, 'growth'); }
+  return layout(`<section class="page-title"><div><p class="eyebrow">MY READING GROWTH</p><h1>성장 현황</h1><p class="subtitle">읽은 책과 미션 기록이 나의 성장으로 이어져요.</p></div></section><section class="panel"><div class="level-row"><div class="level-icon">${levelIcon(lv)}</div><div class="level-copy"><div class="level-title">LV.${currentIndex} ${lv[1]}</div><p class="subtitle" style="margin:6px 0">총 ${data.records.length}권 · 스티커 ${stickerCount()}개</p></div></div></section><section class="roadmap-section"><div class="roadmap-heading"><div><p class="eyebrow">LEVEL ROADMAP</p><h2>나의 성장 레벨 로드맵</h2><p class="subtitle">독서 권수가 쌓일 때마다 나의 성장 레벨과 업적이 한 단계 높아져요!</p></div><span class="roadmap-total">현재 ${data.records.length}권</span></div><div class="roadmap-grid">${roadmap}</div></section>`, 'growth'); }
 function success() { return layout(`<section class="success"><div class="sticker-pop">⭐</div><p class="eyebrow">MISSION COMPLETE</p><h2>독서 기록이 저장됐어요!</h2><p class="subtitle">스티커 1개를 받았어요.<br>다음 책도 기록해 볼까요?</p><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="record">다음 책 기록하기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></section>`, 'home'); }
 function levelUp() { const gained = state.levelUp || level(); const next = LEVELS.find(item => item[0] > data.records.length); const confetti = Array.from({ length: 28 }, (_, index) => `<i class="confetti-piece piece-${index % 7}" style="--delay:${(index % 7) * 0.08}s;--x:${(index * 37) % 94}%"></i>`).join(''); return layout(`<section class="level-up-card"><div class="confetti" aria-hidden="true">${confetti}</div><div class="level-up-icon">${levelIcon(gained)}</div><p class="eyebrow">LEVEL UP!</p><h1>축하해요!</h1><h2>LV.${LEVELS.indexOf(gained)} ${esc(gained[1])} 달성</h2><p class="subtitle">책 ${data.records.length}권을 읽고 미션을 완성했어요.<br>나의 독서 실력이 한 단계 자랐습니다.</p><div class="level-up-progress"><span>${next ? `다음 레벨까지 ${next[0] - data.records.length}권` : '최고 레벨 달성!'}</span></div><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="growth">성장 현황 보기</button><button class="secondary-button" data-view="record">다음 책 기록하기</button></div></section>`, 'growth'); }
 function render() { document.querySelector('#app').innerHTML = data.nickname ? (state.view === 'home' ? home() : state.view === 'record' ? (state.mission ? missionView() : recordForm()) : state.view === 'history' ? history() : state.view === 'growth' ? growth() : state.view === 'success' ? success() : state.view === 'levelup' ? levelUp() : home()) : auth(); }
@@ -403,4 +404,42 @@ async function markFeedbackSeen(record) {
   if (!fb || fb.seen_at || !sb) return;
   fb.seen_at = new Date().toISOString();
   try { await sb.rpc('mark_feedback_seen', { p_record_id: record.id }); } catch { fb.seen_at = null; }
+}
+
+// 학급 챌린지 · 학년 랭킹 · 보너스 스티커
+async function loadCommunity() {
+  data.challenges = []; data.ranking = []; data.bonus = 0;
+  if (!sb) return;
+  const [challenges, ranking, bonus] = await Promise.all([
+    sb.rpc('challenge_status'), sb.rpc('grade_ranking'), sb.rpc('my_bonus_stickers')
+  ]);
+  if (!challenges.error) data.challenges = challenges.data || [];
+  if (!ranking.error) data.ranking = ranking.data || [];
+  if (!bonus.error) data.bonus = Number(bonus.data) || 0;
+}
+function stickerCount() { return data.records.length + (data.bonus || 0); }
+function shortDate(text) { const [, m, d] = String(text).slice(0, 10).split('-'); return `${Number(m)}/${Number(d)}`; }
+function challengeCard(item) {
+  const target = Number(item.target_books), progress = Number(item.progress), mine = Number(item.my_count);
+  const pct = Math.min(100, Math.round((progress / target) * 100));
+  const today = localDateString(new Date());
+  const ended = item.ends_on < today;
+  const daysLeft = Math.round((parseLocalDate(item.ends_on) - parseLocalDate(today)) / 86400000);
+  let status;
+  if (item.achieved && mine >= 1) status = `<span class="challenge-done">🎉 달성! 보너스 스티커 +${item.bonus_stickers}</span>`;
+  else if (item.achieved) status = '<span class="challenge-done">🎉 우리 반 달성! 한 권 이상 읽으면 보너스 스티커를 받아요.</span>';
+  else if (ended) status = '<span class="challenge-miss">아쉽게 끝났어요. 다음에 또 도전해요!</span>';
+  else status = `<span>${daysLeft === 0 ? '오늘 마감' : `D-${daysLeft}`} · 내가 읽은 책 ${mine}권 · 달성하면 ⭐+${item.bonus_stickers}</span>`;
+  return `<div class="challenge-item"><div class="challenge-top"><strong>${esc(item.title)}</strong><small>${shortDate(item.starts_on)} ~ ${shortDate(item.ends_on)}</small></div><div class="progress"><span style="width:${pct}%"></span></div><div class="progress-note"><span>우리 반 ${progress} / ${target}권 (${pct}%)</span></div><div class="challenge-status">${status}</div></div>`;
+}
+function communityPanel() {
+  const today = localDateString(new Date());
+  const visible = (data.challenges || []).filter(c => c.ends_on >= today || c.achieved).slice(0, 3);
+  const challenges = visible.length ? visible.map(challengeCard).join('') : '<div class="empty">진행 중인 학급 챌린지가 없어요. 선생님이 만들면 여기에 보여요.</div>';
+  const medals = ['🥇', '🥈', '🥉'];
+  const rows = (data.ranking || []).map(row => `<li class="${row.is_me ? 'me' : ''}"><span class="rank-no">${row.rank ? (medals[row.rank - 1] || `${row.rank}위`) : '-'}</span><span class="rank-name">${esc(row.nickname)}${row.is_me ? ' (나)' : ''}</span><b>${row.books}권</b></li>`).join('');
+  const me = (data.ranking || []).find(row => row.is_me);
+  const meNote = me && !me.rank ? '<p class="subtitle rank-note">이번 달 첫 책을 기록하면 순위에 올라가요!</p>' : '';
+  const ranking = rows ? `<ol class="rank-list">${rows}</ol>${meNote}` : '<div class="empty">학급에 가입하면 같은 학년 친구들과 함께 볼 수 있어요.</div>';
+  return `<section class="community-grid"><section class="panel"><p class="eyebrow">CLASS CHALLENGE</p><h2>우리 반 챌린지</h2>${challenges}</section><section class="panel"><p class="eyebrow">THIS MONTH</p><h2>우리 학년 독서왕 TOP 5</h2><p class="subtitle">이번 달에 읽은 책 권수예요.</p>${ranking}</section></section>`;
 }
