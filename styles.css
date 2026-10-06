@@ -465,3 +465,8 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .challenge-class { margin: 14px 0; }
 .challenge-class h3 { margin: 0 0 4px; font-size: .95rem; }
 .challenge-top strong small { margin-left: 6px; color: #6b7a66; font-weight: 600; }
+
+/* 학생 일괄 생성 */
+.bulk-result { margin-top: 16px; padding-top: 14px; border-top: 1px solid #ece8f6; display: grid; gap: 10px; }
+.bulk-result code { font-size: 1.05rem; letter-spacing: .1em; }
+#bulk-text { width: 100%; padding: 10px 12px; border: 1px solid #d9e3d4; border-radius: 12px; font: inherit; resize: vertical; box-sizing: border-box; }

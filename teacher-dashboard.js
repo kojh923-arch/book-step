@@ -138,7 +138,7 @@ function dashboardScreen() {
   }).join('');
   return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${escapeHtml(teacher.nickname)} 선생님 · 학급 대시보드</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
   <section class="page-title"><div><p class="eyebrow">CLASS READING DASHBOARD</p><h1>우리 반 독서 현황</h1><p class="subtitle">학생별 독서 기록과 미션 답변을 한눈에 확인해요.</p></div><button class="secondary-button" data-action="refresh">새로고침</button></section>
-  ${classPanel()}${challengePanel()}
+  ${classPanel()}${bulkPanel()}${challengePanel()}
   <section class="stats"><div class="stat"><div class="stat-label">등록 학생</div><div class="stat-value">${students.length}명</div><div class="stat-note">현재 학생 계정 기준</div></div><div class="stat"><div class="stat-label">이번 달 독서</div><div class="stat-value">${thisMonth}권</div><div class="stat-note">${monthKey.replace('-', '년 ')}월 기록</div></div><div class="stat"><div class="stat-label">전체 미션 완료</div><div class="stat-value">${records.length}회</div><div class="stat-note">저장된 독서 기록 수</div></div><div class="stat"><div class="stat-label">기록한 학생</div><div class="stat-value">${completedStudents}명</div><div class="stat-note">한 권 이상 기록</div></div></section>
   <section class="teacher-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">STUDENT SUMMARY</p><h2>학생별 성장 현황</h2></div></div><div class="table-wrap"><table class="teacher-table"><thead><tr><th>학생</th><th>학급</th><th>읽은 책</th><th>현재 업적</th><th>최근 기록</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="empty">아직 가입한 학생이 없어요.</td></tr>'}</tbody></table></div></section>
   <aside class="panel"><p class="eyebrow">RECENT RECORDS</p><h2>최근 미션 답변</h2><div class="teacher-records">${latest.length ? latest.map(record => `<details class="teacher-record"><summary><div><strong>${escapeHtml(record.student_nickname || '학생')}</strong><span class="record-meta">${escapeHtml(record.title)} · ${escapeHtml(record.read_date)}</span></div></summary><p><strong>${escapeHtml(record.mission)}</strong></p><p class="subtitle">${escapeHtml(record.answer)}</p></details>`).join('') : '<div class="empty">아직 제출된 기록이 없어요.</div>'}</div></aside></section>${studentRecordModal()}</div></div>`;
@@ -354,4 +354,67 @@ document.addEventListener('submit', async event => {
   if (error) { alert(error.message || '챌린지를 만들지 못했어요.'); return; }
   Object.assign(challengeForm, challengeDefaults(), { classId: f.classId });
   await loadDashboard(); render();
+});
+
+// 학생 일괄 생성
+const bulk = { classId: '', text: '', busy: false, error: '', result: null };
+function parseBulkText(text) {
+  return String(text).split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+    const [nickname, password] = line.split(/[\t,]/).map(part => part.trim());
+    return { nickname: nickname || '', password: password || '' };
+  });
+}
+function bulkPanel() {
+  if (!classes.length) return '';
+  if (!bulk.classId || !classes.some(item => item.id === bulk.classId)) bulk.classId = classes[0].id;
+  const options = classes.map(item => `<option value="${escapeHtml(item.id)}" ${bulk.classId === item.id ? 'selected' : ''}>${escapeHtml(item.schools?.name || '')} ${item.grade}학년 ${item.class_no}반</option>`).join('');
+  const count = parseBulkText(bulk.text).length;
+  const statusLabel = { created: '✅ 만들어짐', exists: '⚠️ 이미 있음', error: '❌ 실패' };
+  const result = bulk.result ? `<div class="bulk-result"><p class="subtitle">학급코드 <b>${escapeHtml(bulk.result.classCode)}</b> · 만들어진 계정 ${bulk.result.results.filter(item => item.status === 'created').length}개 / 전체 ${bulk.result.results.length}명. <b>비밀번호는 이 화면을 닫으면 다시 볼 수 없으니 지금 인쇄하거나 저장해 주세요.</b></p><div class="table-wrap"><table class="teacher-table"><thead><tr><th>닉네임</th><th>비밀번호</th><th>결과</th></tr></thead><tbody>${bulk.result.results.map(item => `<tr><td>${escapeHtml(item.nickname)}</td><td>${item.password ? `<code>${escapeHtml(item.password)}</code>` : '-'}</td><td>${statusLabel[item.status] || ''} ${escapeHtml(item.message || '')}</td></tr>`).join('')}</tbody></table></div><div class="button-row"><button type="button" class="secondary-button" data-action="bulk-print">인쇄하기</button><button type="button" class="secondary-button" data-action="bulk-csv">CSV 저장</button><button type="button" class="ghost-button" data-action="bulk-close">결과 닫기</button></div></div>` : '';
+  return `<section class="panel"><div class="panel-header"><div><p class="eyebrow">BULK STUDENTS</p><h2>학생 계정 한 번에 만들기</h2><p class="subtitle">닉네임을 한 줄에 한 명씩 붙여넣으세요. 엑셀에서 복사해도 돼요. 비밀번호를 따로 적지 않으면 6자리 숫자가 자동으로 만들어져요.</p></div></div>
+  <form id="bulk-form" class="class-form"><div class="field"><label for="bulk-class">학급</label><select id="bulk-class">${options}</select></div><div class="field"><label for="bulk-text">학생 명단 (${count}명)</label><textarea id="bulk-text" rows="6" placeholder="책벌레1&#10;책벌레2&#10;별빛독서가, 123456">${escapeHtml(bulk.text)}</textarea><small class="record-meta">실명 대신 별명을 쓰는 걸 권해요. 줄마다 "닉네임" 또는 "닉네임, 비밀번호"(6자 이상)로 적어요. 한 번에 60명까지 가능해요.</small></div>${bulk.error ? `<div class="error">${escapeHtml(bulk.error)}</div>` : ''}<button class="primary-button" type="submit" ${bulk.busy ? 'disabled' : ''}>${bulk.busy ? '만드는 중…' : '계정 만들기'}</button></form>${result}</section>`;
+}
+function bulkRowsForExport() {
+  return bulk.result.results.map(item => [item.nickname, bulk.result.classCode, item.password || '', item.status === 'created' ? '만들어짐' : item.status === 'exists' ? '이미 있음' : (item.message || '실패')]);
+}
+document.addEventListener('input', event => { if (event.target.id === 'bulk-text') { bulk.text = event.target.value; const label = document.querySelector('label[for="bulk-text"]'); if (label) label.textContent = `학생 명단 (${parseBulkText(bulk.text).length}명)`; } });
+document.addEventListener('change', event => { if (event.target.id === 'bulk-class') bulk.classId = event.target.value; });
+document.addEventListener('click', event => {
+  const action = event.target.closest('[data-action]')?.dataset.action;
+  if (action === 'bulk-close') { bulk.result = null; render(); }
+  if (action === 'bulk-csv' && bulk.result) {
+    const rows = [['닉네임', '학급코드', '비밀번호', '결과'], ...bulkRowsForExport()];
+    const csv = '﻿' + rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    link.download = `학생계정_${bulk.result.classCode}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+  if (action === 'bulk-print' && bulk.result) {
+    const rows = bulkRowsForExport().filter(row => row[2]);
+    const win = window.open('', '_blank');
+    if (!win) { alert('팝업이 차단됐어요. 팝업을 허용하거나 CSV로 저장해 주세요.'); return; }
+    win.document.write(`<!doctype html><meta charset="utf-8"><title>학생 로그인 카드</title><style>body{font-family:sans-serif;margin:16px}.card{display:inline-block;width:46%;margin:6px;padding:12px 14px;border:1px dashed #888;border-radius:8px;box-sizing:border-box;page-break-inside:avoid}h3{margin:0 0 6px}p{margin:3px 0}code{font-size:1.2em;letter-spacing:.1em}</style>${rows.map(row => `<div class="card"><h3>📚 독서한걸음</h3><p>닉네임: <b>${escapeHtml(row[0])}</b></p><p>학급코드: <b>${escapeHtml(row[1])}</b></p><p>비밀번호: <code>${escapeHtml(row[2])}</code></p></div>`).join('')}`);
+    win.document.close(); win.focus(); win.print();
+  }
+});
+document.addEventListener('submit', async event => {
+  if (event.target.id !== 'bulk-form') return;
+  event.preventDefault();
+  const students = parseBulkText(bulk.text);
+  if (!students.length) { bulk.error = '학생 명단을 입력해 주세요.'; render(); return; }
+  if (students.length > 60) { bulk.error = '한 번에 60명까지만 만들 수 있어요.'; render(); return; }
+  bulk.busy = true; bulk.error = ''; render();
+  const { data: body, error } = await sb.functions.invoke('bulk-create-students', { body: { classId: bulk.classId, students } });
+  bulk.busy = false;
+  if (error) {
+    const detail = await error.context?.json?.().catch(() => null);
+    bulk.error = detail?.error || error.message || '학생 계정을 만들지 못했어요.';
+  } else {
+    bulk.result = body;
+    bulk.text = '';
+    await loadDashboard();
+  }
+  render();
 });

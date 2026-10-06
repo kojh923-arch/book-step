@@ -12,12 +12,12 @@ function response(body: Record<string, unknown>, status = 200) {
   });
 }
 
-function loginEmail(nickname: string) {
-  const bytes = new TextEncoder().encode(nickname.trim());
+function loginEmail(classCode: string, nickname: string) {
+  const bytes = new TextEncoder().encode(`${classCode.trim().toUpperCase()}:${nickname.trim()}`);
   let binary = '';
   bytes.forEach(byte => { binary += String.fromCharCode(byte); });
   const encoded = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  return `student-${encoded}@bookstep.local`;
+  return `student2-${encoded}@bookstep.local`;
 }
 
 Deno.serve(async request => {
@@ -48,7 +48,7 @@ Deno.serve(async request => {
       return response({ error: '학급코드가 선택한 학교·학년·반과 맞지 않아요. 선생님께 다시 확인해 주세요.' }, 403);
     }
     const { data, error } = await admin.auth.admin.createUser({
-      email: loginEmail(nickname),
+      email: loginEmail(classCode, nickname),
       password,
       email_confirm: true,
       user_metadata: { nickname: nickname.trim() }
