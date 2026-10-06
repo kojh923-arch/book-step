@@ -136,9 +136,9 @@ function dashboardScreen() {
     const [threshold, name] = levelName(own.length);
     return `<tr><td><button class="student-name-button" data-action="open-student" data-student-id="${escapeHtml(student.id)}">${escapeHtml(student.nickname)}</button></td><td>${escapeHtml(classLabel(student.class_id))}</td><td>${own.length}권</td><td>LV.${threshold === 0 ? 0 : [[0],[5],[10],[20],[40],[60],[80],[100],[130],[160],[200]].findIndex(item => item[0] === threshold)} ${name}</td><td>${newest ? escapeHtml(newest.title) : '<span class="record-meta">아직 기록 없음</span>'}</td></tr>`;
   }).join('');
-  return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${escapeHtml(teacher.nickname)} 선생님 · 학급 대시보드</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
-  <section class="page-title"><div><p class="eyebrow">CLASS READING DASHBOARD</p><h1>우리 반 독서 현황</h1><p class="subtitle">학생별 독서 기록과 미션 답변을 한눈에 확인해요.</p></div><button class="secondary-button" data-action="refresh">새로고침</button></section>
-  ${classPanel()}${bulkPanel()}${challengePanel()}
+  return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${teacherTitle()}</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
+  <section class="page-title"><div><p class="eyebrow">CLASS READING DASHBOARD</p><h1>우리 반 독서 현황</h1><p class="subtitle">학생별 독서 기록과 미션 답변을 한눈에 확인해요.</p>${classChips()}</div><button class="secondary-button" data-action="refresh">새로고침</button></section>
+  ${collapsible('classes', classPanel(), !classes.length)}${collapsible('bulk', bulkPanel())}${collapsible('challenge', challengePanel())}
   <section class="stats"><div class="stat"><div class="stat-label">등록 학생</div><div class="stat-value">${students.length}명</div><div class="stat-note">현재 학생 계정 기준</div></div><div class="stat"><div class="stat-label">이번 달 독서</div><div class="stat-value">${thisMonth}권</div><div class="stat-note">${monthKey.replace('-', '년 ')}월 기록</div></div><div class="stat"><div class="stat-label">전체 미션 완료</div><div class="stat-value">${records.length}회</div><div class="stat-note">저장된 독서 기록 수</div></div><div class="stat"><div class="stat-label">기록한 학생</div><div class="stat-value">${completedStudents}명</div><div class="stat-note">한 권 이상 기록</div></div></section>
   <section class="teacher-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">STUDENT SUMMARY</p><h2>학생별 성장 현황</h2></div></div><div class="table-wrap"><table class="teacher-table"><thead><tr><th>학생</th><th>학급</th><th>읽은 책</th><th>현재 업적</th><th>최근 기록</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="empty">아직 가입한 학생이 없어요.</td></tr>'}</tbody></table></div></section>
   <aside class="panel"><p class="eyebrow">RECENT RECORDS</p><h2>최근 미션 답변</h2><div class="teacher-records">${latest.length ? latest.map(record => `<details class="teacher-record"><summary><div><strong>${escapeHtml(record.student_nickname || '학생')}</strong><span class="record-meta">${escapeHtml(record.title)} · ${escapeHtml(record.read_date)}</span></div></summary><p><strong>${escapeHtml(record.mission)}</strong></p><p class="subtitle">${escapeHtml(record.answer)}</p></details>`).join('') : '<div class="empty">아직 제출된 기록이 없어요.</div>'}</div></aside></section>${studentRecordModal()}</div></div>`;
@@ -413,8 +413,48 @@ document.addEventListener('submit', async event => {
     bulk.error = detail?.error || error.message || '학생 계정을 만들지 못했어요.';
   } else {
     bulk.result = body;
+    panelOpen.bulk = true;
     bulk.text = '';
     await loadDashboard();
   }
   render();
+});
+
+// 상단 제목과 담당 학급 표시
+function teacherTitle() {
+  const name = /선생님$/.test(teacher.nickname) ? teacher.nickname : `${teacher.nickname} 선생님`;
+  const labels = classes.map(item => `${item.schools?.name || ''} ${item.grade}학년 ${item.class_no}반`.trim());
+  return escapeHtml(labels.length ? `${name} · ${labels.join(', ')}` : `${name} · 학급 대시보드`);
+}
+function classChips() {
+  if (!classes.length) return '<div class="class-chips"><span class="class-chip empty-chip">아직 학급이 없어요. 아래에서 학급을 만들어 주세요.</span></div>';
+  return `<div class="class-chips">${classes.map(item => {
+    const count = students.filter(student => student.class_id === item.id).length;
+    return `<span class="class-chip">🏫 ${escapeHtml(item.schools?.name || '')} <b>${item.grade}학년 ${item.class_no}반</b> · 코드 <b class="chip-code">${escapeHtml(item.join_code)}</b> · 학생 ${count}명</span>`;
+  }).join('')}</div>`;
+}
+
+// 패널 접기/열기
+const panelOpen = {};
+function collapsible(key, html, openByDefault = false) {
+  if (!html) return '';
+  const isOpen = panelOpen[key] ?? openByDefault;
+  const end = '</div></div>';
+  const headStart = html.indexOf('<div class="panel-header">');
+  const headEnd = html.indexOf(end, headStart) + end.length;
+  if (headStart < 0 || headEnd < end.length) return html;
+  const toggle = `<button type="button" class="ghost-button panel-toggle" data-action="toggle-panel" data-panel="${key}" aria-expanded="${isOpen}">${isOpen ? '접기 ▲' : '열기 ▼'}</button>`;
+  const header = html.slice(headStart, headEnd - end.length) + '</div>' + toggle + '</div>';
+  const body = html.slice(headEnd, html.lastIndexOf('</section>'));
+  return html.slice(0, headStart) + header + `<div class="panel-body"${isOpen ? '' : ' hidden'}>${body}</div></section>`;
+}
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-action="toggle-panel"]');
+  if (!button) return;
+  const key = button.dataset.panel;
+  const wasOpen = button.getAttribute('aria-expanded') === 'true';
+  panelOpen[key] = !wasOpen;
+  const y = window.scrollY;
+  render();
+  window.scrollTo(0, y);
 });

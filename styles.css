@@ -470,3 +470,15 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .bulk-result { margin-top: 16px; padding-top: 14px; border-top: 1px solid #ece8f6; display: grid; gap: 10px; }
 .bulk-result code { font-size: 1.05rem; letter-spacing: .1em; }
 #bulk-text { width: 100%; padding: 10px 12px; border: 1px solid #d9e3d4; border-radius: 12px; font: inherit; resize: vertical; box-sizing: border-box; }
+
+/* 교사: 내 학급 칩 */
+.class-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.class-chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 999px; background: #eeeeff; color: #3d4670; font-size: .9rem; }
+.class-chip b { font-weight: 800; }
+.class-chip.empty-chip { background: #fff6e8; color: #8a7358; }
+
+/* 교사: 접고 펼치는 패널 */
+.panel-toggle { white-space: nowrap; flex: 0 0 auto; }
+.panel-header:has(+ .panel-body[hidden]) { margin-bottom: 0; }
+.panel-body[hidden] { display: none; }
+.chip-code { letter-spacing: .1em; }
