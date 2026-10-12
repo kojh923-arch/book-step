@@ -482,3 +482,24 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .panel-header:has(+ .panel-body[hidden]) { margin-bottom: 0; }
 .panel-body[hidden] { display: none; }
 .chip-code { letter-spacing: .1em; }
+
+/* 교사 학생 관리 */
+.manage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.manage-bar select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font: inherit; }
+.manage-bar .manage-actions { margin-left: auto; }
+.selected-bar { padding: 10px 12px; border-radius: 14px; background: #eef4ff; }
+.check-label { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--muted); }
+.chip-button { border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 6px 12px; border-radius: 999px; font: inherit; font-size: .88rem; cursor: pointer; }
+.chip-button.active { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 800; }
+.check-col { width: 32px; }
+.badge-todo { display: inline-block; padding: 2px 9px; border-radius: 999px; background: #fff0b4; color: #8a5a00; font-weight: 800; font-size: .85rem; }
+.badge-warn { display: inline-block; margin-left: 4px; padding: 2px 8px; border-radius: 999px; background: #ffe3e8; color: #c0304f; font-size: .8rem; font-weight: 700; }
+.danger-text { color: #df4763; }
+.flash-banner { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 12px 0; padding: 14px 16px; border-radius: 16px; background: #fff6e8; line-height: 1.6; }
+.flash-banner code { font-size: 1.15em; letter-spacing: .1em; font-weight: 800; }
+.edit-form { display: grid; gap: 12px; margin-top: 12px; padding: 14px; border-radius: 16px; background: #f4f9ff; }
+.edit-form textarea { min-height: 110px; }
+.edit-form .field-row .field { margin: 0; }
+.modal-actions .secondary-button + .delete-record-button, .modal-actions .edit-record-button { margin-right: 8px; }
+.edit-record-button { border: 0; background: transparent; color: var(--blue-dark); font-size: 13px; font-weight: 900; padding: 10px 0; cursor: pointer; }
+.dup-note { margin-top: 8px; padding: 8px 12px; border-radius: 12px; background: #fff6e8; color: #8a5a00; font-size: .9rem; }
