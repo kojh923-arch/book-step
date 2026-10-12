@@ -1,7 +1,7 @@
 -- 내 방 꾸미기: 스티커로 아이템을 사서 슬롯에 배치합니다.
--- 실행 순서: supabase-challenges.sql 다음에 한 번 실행하세요. 여러 번 실행해도 안전합니다.
+-- 실행 순서: supabase-challenges.sql, supabase-feedback.sql 다음에 한 번 실행하세요. 여러 번 실행해도 안전합니다.
 --
--- 스티커 = 읽은 책 1권당 1개 + 학급 챌린지 보너스 (my_bonus_stickers)
+-- 스티커 = 읽은 책 1권당 1개 + 학급 챌린지 보너스 + 선생님 도장 3개마다 1개
 -- 사용 가능 스티커 = 번 스티커 - 구매한 아이템 가격 합계
 -- 구매·배치는 모두 아래 함수로만 가능합니다. (테이블 직접 쓰기는 막혀 있어요)
 
@@ -14,6 +14,8 @@ create table if not exists public.room_items (
   price int not null check (price >= 0),
   unlock_level int not null default 0 check (unlock_level >= 0)
 );
+-- 레벨 선물: 값이 있으면 그 레벨에 도달한 학생에게 무료로 열리는 아이템 (price는 0)
+alter table public.room_items add column if not exists reward_level int check (reward_level is null or reward_level >= 1);
 
 create table if not exists public.user_items (
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -82,6 +84,17 @@ on conflict (id) do update set
   name = excluded.name, emoji = excluded.emoji, color = excluded.color,
   slot = excluded.slot, price = excluded.price, unlock_level = excluded.unlock_level;
 
+-- 레벨 선물 아이템 (구매 불가, 레벨 달성 시 자동으로 열려요)
+insert into public.room_items (id, name, emoji, color, slot, price, unlock_level, reward_level) values
+  ('rw_bookworm', '책벌레',        '🐛', null, 'pet', 0, 0, 1),
+  ('rw_forest',   '숲속 벽지',     '🌲', 'linear-gradient(#bfe8c5,#8fcf9d)', 'wallpaper', 0, 0, 3),
+  ('rw_medal',    '독서 메달',     '🥇', null, 'wall_deco', 0, 0, 5),
+  ('rw_unicorn',  '유니콘',        '🦄', null, 'pet', 0, 0, 8),
+  ('rw_library',  '황금 서재',     '🏛️', null, 'shelf', 0, 0, 10)
+on conflict (id) do update set
+  name = excluded.name, emoji = excluded.emoji, color = excluded.color, slot = excluded.slot,
+  price = excluded.price, unlock_level = excluded.unlock_level, reward_level = excluded.reward_level;
+
 -- 책 권수 → 레벨 번호 (앱의 LEVELS와 같은 기준: 0,5,10,20,40,60,80,100,130,160,200권)
 create or replace function public.room_level(p_books int)
 returns int
@@ -94,6 +107,7 @@ as $$
 $$;
 
 -- 번 스티커 / 쓴 스티커 / 책 권수
+-- 번 스티커 = 책 1권당 1 + 챌린지 보너스 + 선생님 도장 3개마다 1
 create or replace function public.room_balance()
 returns table (earned int, spent int, books int)
 language sql
@@ -102,7 +116,8 @@ security definer
 set search_path = public
 as $$
   with b as (select count(*)::int as n from public.reading_records where user_id = auth.uid())
-  select (b.n + public.my_bonus_stickers())::int,
+  select (b.n + public.my_bonus_stickers()
+          + (select count(*) / 3 from public.teacher_feedback f join public.reading_records r on r.id = f.record_id where r.user_id = auth.uid()))::int,
          coalesce((select sum(i.price) from public.user_items u join public.room_items i on i.id = u.item_id where u.user_id = auth.uid()), 0)::int,
          b.n
   from b;
@@ -124,7 +139,7 @@ begin
   if v_uid is null then raise exception '로그인이 필요해요.'; end if;
   select * into v_item from public.room_items where id = p_item_id;
   if not found then raise exception '없는 아이템이에요.'; end if;
-  if v_item.price = 0 then raise exception '기본 아이템은 살 필요가 없어요.'; end if;
+  if v_item.price = 0 then raise exception '살 필요가 없는 아이템이에요.'; end if;
 
   -- 같은 학생의 동시 구매로 잔액이 꼬이지 않게 잠급니다.
   perform pg_advisory_xact_lock(hashtext('room:' || v_uid::text));
@@ -156,11 +171,17 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_item public.room_items;
+  v_books int;
 begin
   if v_uid is null then raise exception '로그인이 필요해요.'; end if;
   select * into v_item from public.room_items where id = p_item_id;
   if not found then raise exception '없는 아이템이에요.'; end if;
-  if v_item.price > 0 and not exists (select 1 from public.user_items where user_id = v_uid and item_id = p_item_id) then
+  if v_item.reward_level is not null then
+    select count(*)::int into v_books from public.reading_records where user_id = v_uid;
+    if public.room_level(v_books) < v_item.reward_level then
+      raise exception '레벨 %를 달성하면 선물로 받아요.', v_item.reward_level;
+    end if;
+  elsif v_item.price > 0 and not exists (select 1 from public.user_items where user_id = v_uid and item_id = p_item_id) then
     raise exception '아직 가지고 있지 않은 아이템이에요.';
   end if;
   insert into public.user_room (user_id, slot, item_id) values (v_uid, v_item.slot, p_item_id)
@@ -179,5 +200,24 @@ as $$
   delete from public.user_room where user_id = auth.uid() and slot = p_slot;
 $$;
 grant execute on function public.clear_slot(text) to authenticated;
+
+-- 같은 반 친구들의 방 구경: 닉네임과 배치된 아이템만 돌려줍니다. (다른 기록은 볼 수 없어요)
+create or replace function public.classmate_rooms()
+returns table (nickname text, placed jsonb)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.nickname,
+         coalesce((select jsonb_object_agg(ur.slot, ur.item_id) from public.user_room ur where ur.user_id = p.id), '{}'::jsonb)
+  from public.profiles p
+  where p.role = 'student'
+    and p.id <> auth.uid()
+    and p.class_id is not null
+    and p.class_id = (select me.class_id from public.profiles me where me.id = auth.uid())
+  order by p.nickname;
+$$;
+grant execute on function public.classmate_rooms() to authenticated;
 
 notify pgrst, 'reload schema';

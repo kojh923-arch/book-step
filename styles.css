@@ -536,3 +536,12 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .shop-icon { font-size: 40px; line-height: 1; height: 48px; display: grid; place-items: center; }
 .room-swatch { display: block; width: 46px; height: 46px; border-radius: 12px; border: 2px solid rgba(0, 0, 0, .1); }
 @media (max-width: 520px) { .room { aspect-ratio: 4 / 3; } .room-slot small { font-size: 2.6cqw; } .sticker-wallet { margin-top: 8px; display: inline-block; } }
+
+/* 친구 방 구경 · 레벨 선물 */
+.room-modes { display: flex; gap: 8px; margin-bottom: 14px; }
+.room-hint { margin: -8px 0 18px; font-size: 13px; text-align: center; }
+.friend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.friend-room strong { display: block; margin: 0 0 8px 6px; }
+.room-mini { margin: 0; aspect-ratio: 16 / 10; pointer-events: none; }
+.room-mini .room-slot { cursor: default; border-color: transparent; }
+.level-gift { background: var(--yellow); border-radius: 14px; padding: 10px 14px; font-weight: 800; }
