@@ -119,28 +119,25 @@ const teacherBookVisual = record => record.cover_image ? `<span class="teacher-r
 function studentRecordModal() {
   const student = students.find(item => item.id === selectedStudentId);
   if (!student) return '';
-  const own = records.filter(record => record.user_id === student.id);
-  const [threshold, name] = levelName(own.length);
+  const all = records.filter(record => record.user_id === student.id);
+  const own = manage.onlyUnreviewed ? all.filter(record => !feedback[record.id]) : all;
+  const [threshold, name] = levelName(all.length);
   const levelNumber = [[0], [5], [10], [20], [40], [60], [80], [100], [130], [160], [200]].findIndex(item => item[0] === threshold);
-  const list = own.length ? own.map(record => `<article class="teacher-student-record">${teacherBookVisual(record)}<div class="teacher-student-record-copy"><div class="teacher-student-record-head"><div><h3>${escapeHtml(record.title)}</h3><p>${escapeHtml(record.author)} · 📅 ${escapeHtml(record.read_date)}</p></div><strong>${teacherStars(record.rating)}</strong></div><div class="teacher-mission-answer"><span>랜덤 미션</span><b>${escapeHtml(record.mission || '미션 내용 없음')}</b><span>학생 답변</span><p>${escapeHtml(record.answer || '작성한 답변이 없어요.')}</p></div>${feedbackForm(record)}</div></article>`).join('') : '<div class="empty">아직 작성한 독서 기록이 없어요.</div>';
-  return `<div class="record-modal-backdrop" data-action="close-student"><section class="record-modal teacher-student-modal" role="dialog" aria-modal="true" aria-label="학생 독서 기록"><button class="modal-close" data-action="close-student" aria-label="닫기">×</button><p class="eyebrow">STUDENT READING PORTFOLIO</p><h2>${escapeHtml(student.nickname)} 학생의 독서 기록</h2><p class="subtitle">총 ${own.length}권 · LV.${levelNumber} ${name}</p><div class="teacher-student-record-list">${list}</div><div class="modal-actions"><span></span><button class="primary-button" data-action="close-student">닫기</button></div></section></div>`;
+  const list = own.length ? own.map(record => `<article class="teacher-student-record">${teacherBookVisual(record)}<div class="teacher-student-record-copy"><div class="teacher-student-record-head"><div><h3>${escapeHtml(record.title)}</h3><p>${escapeHtml(record.author)} · 📅 ${escapeHtml(record.read_date)}</p></div><strong>${teacherStars(record.rating)}</strong></div><div class="teacher-mission-answer"><span>랜덤 미션</span><b>${escapeHtml(record.mission || '미션 내용 없음')}</b><span>학생 답변</span><p>${escapeHtml(record.answer || '작성한 답변이 없어요.')}</p></div>${feedbackForm(record)}</div></article>`).join('') : `<div class="empty">${all.length ? '칭찬을 남기지 않은 기록이 없어요. 모두 확인했어요!' : '아직 작성한 독서 기록이 없어요.'}</div>`;
+  const unreviewedCount = all.filter(record => !feedback[record.id]).length;
+  return `<div class="record-modal-backdrop" data-action="close-student"><section class="record-modal teacher-student-modal" role="dialog" aria-modal="true" aria-label="학생 독서 기록"><button class="modal-close" data-action="close-student" aria-label="닫기">×</button><p class="eyebrow">STUDENT READING PORTFOLIO</p><h2>${escapeHtml(student.nickname)} 학생의 독서 기록</h2><p class="subtitle">총 ${all.length}권 · LV.${levelNumber} ${name}</p>${flashBanner()}<div class="manage-bar"><label class="check-label"><input type="checkbox" data-action="toggle-modal-unreviewed" ${manage.onlyUnreviewed ? 'checked' : ''} /> 칭찬 안 남긴 기록만 보기 (${unreviewedCount}개)</label><span class="manage-actions"><button type="button" class="ghost-button" data-action="reset-password" data-student-id="${escapeHtml(student.id)}">🔑 비밀번호 재설정</button></span></div><div class="teacher-student-record-list">${list}</div><div class="modal-actions"><span></span><button class="primary-button" data-action="close-student">닫기</button></div></section></div>`;
 }
 
 function dashboardScreen() {
   const thisMonth = records.filter(record => String(record.read_date || '').startsWith(monthKey)).length;
   const completedStudents = new Set(records.map(record => record.user_id)).size;
   const latest = records.slice(0, 5);
-  const rows = students.map(student => {
-    const own = records.filter(record => record.user_id === student.id);
-    const newest = own[0];
-    const [threshold, name] = levelName(own.length);
-    return `<tr><td><button class="student-name-button" data-action="open-student" data-student-id="${escapeHtml(student.id)}">${escapeHtml(student.nickname)}</button></td><td>${escapeHtml(classLabel(student.class_id))}</td><td>${own.length}권</td><td>LV.${threshold === 0 ? 0 : [[0],[5],[10],[20],[40],[60],[80],[100],[130],[160],[200]].findIndex(item => item[0] === threshold)} ${name}</td><td>${newest ? escapeHtml(newest.title) : '<span class="record-meta">아직 기록 없음</span>'}</td></tr>`;
-  }).join('');
+  const rows = studentRows();
   return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${teacherTitle()}</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
   <section class="page-title"><div><p class="eyebrow">CLASS READING DASHBOARD</p><h1>우리 반 독서 현황</h1><p class="subtitle">학생별 독서 기록과 미션 답변을 한눈에 확인해요.</p>${classChips()}</div><button class="secondary-button" data-action="refresh">새로고침</button></section>
-  ${collapsible('classes', classPanel(), !classes.length)}${collapsible('bulk', bulkPanel())}${collapsible('challenge', challengePanel())}
+  ${selectedStudentId ? '' : flashBanner()}${collapsible('classes', classPanel(), !classes.length)}${collapsible('bulk', bulkPanel())}${collapsible('challenge', challengePanel())}
   <section class="stats"><div class="stat"><div class="stat-label">등록 학생</div><div class="stat-value">${students.length}명</div><div class="stat-note">현재 학생 계정 기준</div></div><div class="stat"><div class="stat-label">이번 달 독서</div><div class="stat-value">${thisMonth}권</div><div class="stat-note">${monthKey.replace('-', '년 ')}월 기록</div></div><div class="stat"><div class="stat-label">전체 미션 완료</div><div class="stat-value">${records.length}회</div><div class="stat-note">저장된 독서 기록 수</div></div><div class="stat"><div class="stat-label">기록한 학생</div><div class="stat-value">${completedStudents}명</div><div class="stat-note">한 권 이상 기록</div></div></section>
-  <section class="teacher-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">STUDENT SUMMARY</p><h2>학생별 성장 현황</h2></div></div><div class="table-wrap"><table class="teacher-table"><thead><tr><th>학생</th><th>학급</th><th>읽은 책</th><th>현재 업적</th><th>최근 기록</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="empty">아직 가입한 학생이 없어요.</td></tr>'}</tbody></table></div></section>
+  <section class="teacher-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">STUDENT SUMMARY</p><h2>학생별 성장 현황</h2></div></div>${manageBar()}<div class="table-wrap"><table class="teacher-table"><thead><tr><th class="check-col"><input type="checkbox" data-action="select-all" aria-label="전체 선택" ${rows.allSelected ? 'checked' : ''} /></th><th>학생</th><th>학급</th><th>읽은 책</th><th>현재 업적</th><th>최근 기록</th><th>칭찬 대기</th></tr></thead><tbody>${rows.html || '<tr><td colspan="7" class="empty">조건에 맞는 학생이 없어요.</td></tr>'}</tbody></table></div></section>
   <aside class="panel"><p class="eyebrow">RECENT RECORDS</p><h2>최근 미션 답변</h2><div class="teacher-records">${latest.length ? latest.map(record => `<details class="teacher-record"><summary><div><strong>${escapeHtml(record.student_nickname || '학생')}</strong><span class="record-meta">${escapeHtml(record.title)} · ${escapeHtml(record.read_date)}</span></div></summary><p><strong>${escapeHtml(record.mission)}</strong></p><p class="subtitle">${escapeHtml(record.answer)}</p></details>`).join('') : '<div class="empty">아직 제출된 기록이 없어요.</div>'}</div></aside></section>${studentRecordModal()}</div></div>`;
 }
 
@@ -457,4 +454,114 @@ document.addEventListener('click', event => {
   const y = window.scrollY;
   render();
   window.scrollTo(0, y);
+});
+
+// 학생 관리: 칭찬 대기·휴면 표시, 비밀번호 재설정, 학급 이동, 삭제
+const manage = { filter: 'all', weeks: 2, selected: new Set(), moveTo: '', onlyUnreviewed: false, flash: null, busy: false };
+function studentStats(student) {
+  const own = records.filter(record => record.user_id === student.id);
+  const lastRead = own.reduce((max, record) => (record.read_date > max ? record.read_date : max), '');
+  const limit = new Date(); limit.setDate(limit.getDate() - manage.weeks * 7);
+  return { own, lastRead, unreviewed: own.filter(record => !feedback[record.id]).length, inactive: !lastRead || lastRead < dateText(limit) };
+}
+function visibleStudents() {
+  return students.filter(student => {
+    const stat = studentStats(student);
+    return manage.filter === 'unreviewed' ? stat.unreviewed > 0 : manage.filter === 'inactive' ? stat.inactive : true;
+  });
+}
+function studentRows() {
+  const list = visibleStudents();
+  const html = list.map(student => {
+    const stat = studentStats(student);
+    const [threshold, name] = levelName(stat.own.length);
+    const levelNumber = [[0], [5], [10], [20], [40], [60], [80], [100], [130], [160], [200]].findIndex(item => item[0] === threshold);
+    const id = escapeHtml(student.id);
+    const recent = stat.lastRead ? `${escapeHtml(stat.lastRead)}${stat.inactive ? ` <span class="badge-warn">${manage.weeks}주 이상 쉬는 중</span>` : ''}` : '<span class="badge-warn">아직 기록 없음</span>';
+    return `<tr><td class="check-col"><input type="checkbox" data-action="select-student" data-student-id="${id}" ${manage.selected.has(student.id) ? 'checked' : ''} aria-label="${escapeHtml(student.nickname)} 선택" /></td><td><button class="student-name-button" data-action="open-student" data-student-id="${id}">${escapeHtml(student.nickname)}</button></td><td>${escapeHtml(classLabel(student.class_id))}</td><td>${stat.own.length}권</td><td>LV.${levelNumber} ${name}</td><td>${recent}</td><td>${stat.unreviewed ? `<span class="badge-todo">${stat.unreviewed}개</span>` : '<span class="record-meta">-</span>'}</td></tr>`;
+  }).join('');
+  return { html, allSelected: list.length > 0 && list.every(student => manage.selected.has(student.id)) };
+}
+function manageBar() {
+  const totalUnreviewed = students.reduce((sum, student) => sum + studentStats(student).unreviewed, 0);
+  const inactiveCount = students.filter(student => studentStats(student).inactive).length;
+  const picked = students.filter(student => manage.selected.has(student.id));
+  const others = classes.filter(item => picked.some(student => student.class_id !== item.id));
+  if (!manage.moveTo || !others.some(item => item.id === manage.moveTo)) manage.moveTo = others[0]?.id || '';
+  const moveOptions = others.map(item => `<option value="${escapeHtml(item.id)}" ${manage.moveTo === item.id ? 'selected' : ''}>${escapeHtml(item.schools?.name || '')} ${item.grade}학년 ${item.class_no}반</option>`).join('');
+  const weekOptions = [1, 2, 3, 4].map(n => `<option value="${n}" ${manage.weeks === n ? 'selected' : ''}>${n}주</option>`).join('');
+  const filters = [['all', `전체 ${students.length}명`], ['unreviewed', `칭찬 대기 ${totalUnreviewed}개`], ['inactive', `기록 쉬는 학생 ${inactiveCount}명`]]
+    .map(([key, label]) => `<button type="button" class="chip-button${manage.filter === key ? ' active' : ''}" data-action="set-filter" data-filter="${key}">${label}</button>`).join('');
+  const bulkTools = picked.length ? `<div class="manage-bar selected-bar"><b>${picked.length}명 선택</b>${moveOptions ? `<select id="move-to" aria-label="이동할 학급">${moveOptions}</select><button type="button" class="secondary-button" data-action="move-students">학급 이동</button>` : '<span class="record-meta">이동할 다른 학급이 없어요. 위에서 학급을 먼저 만들어 주세요.</span>'}<button type="button" class="ghost-button danger-text" data-action="delete-students">선택한 학생 삭제</button></div>` : '';
+  return `<div class="manage-bar">${filters}<label class="check-label">쉬는 기준 <select id="inactive-weeks">${weekOptions}</select></label></div>${bulkTools}`;
+}
+function flashBanner() {
+  if (!manage.flash) return '';
+  return `<section class="flash-banner"><div>${manage.flash}</div><button type="button" class="ghost-button" data-action="close-flash">닫기</button></section>`;
+}
+async function callManage(body) {
+  manage.busy = true;
+  const { data: result, error } = await sb.functions.invoke('manage-student', { body });
+  manage.busy = false;
+  if (error) {
+    const detail = await error.context?.json?.().catch(() => null);
+    throw new Error(detail?.error || error.message || '요청을 처리하지 못했어요.');
+  }
+  return result;
+}
+function keepScroll(fn) { const y = window.scrollY; fn(); window.scrollTo(0, y); }
+document.addEventListener('change', event => {
+  const target = event.target;
+  const action = target.dataset?.action;
+  if (target.id === 'inactive-weeks') { manage.weeks = Number(target.value); keepScroll(render); }
+  if (target.id === 'move-to') manage.moveTo = target.value;
+  if (action === 'select-student') { target.checked ? manage.selected.add(target.dataset.studentId) : manage.selected.delete(target.dataset.studentId); keepScroll(render); }
+  if (action === 'select-all') { visibleStudents().forEach(student => target.checked ? manage.selected.add(student.id) : manage.selected.delete(student.id)); keepScroll(render); }
+  if (action === 'toggle-modal-unreviewed') { manage.onlyUnreviewed = target.checked; renderKeepModalScroll(); }
+});
+document.addEventListener('click', async event => {
+  const button = event.target.closest('button[data-action]');
+  if (!button || manage.busy) return;
+  const action = button.dataset.action;
+  if (action === 'set-filter') { manage.filter = button.dataset.filter; keepScroll(render); }
+  if (action === 'close-flash') { manage.flash = null; selectedStudentId ? renderKeepModalScroll() : keepScroll(render); }
+  if (action === 'reset-password') {
+    const student = students.find(item => item.id === button.dataset.studentId);
+    if (!student) return;
+    const typed = prompt(`${student.nickname} 학생의 새 비밀번호를 입력하세요.\n(6자 이상, 비워 두면 6자리 숫자가 자동으로 만들어져요)`);
+    if (typed === null) return;
+    try {
+      const result = await callManage({ action: 'reset-password', studentId: student.id, password: typed.trim() });
+      manage.flash = `🔑 <b>${escapeHtml(result.nickname)}</b> 학생의 새 비밀번호: <code>${escapeHtml(result.password)}</code><br><small>이 창을 닫으면 다시 볼 수 없으니 학생에게 바로 알려 주세요.</small>`;
+      renderKeepModalScroll();
+    } catch (error) { alert(error.message); }
+  }
+  if (action === 'move-students') {
+    const ids = [...manage.selected];
+    const target = classes.find(item => item.id === manage.moveTo);
+    if (!ids.length || !target) return;
+    if (!confirm(`선택한 ${ids.length}명을 ${target.grade}학년 ${target.class_no}반으로 옮길까요?\n학급코드가 바뀌므로 학생은 새 학급코드로 로그인해야 해요. (현재 코드: ${target.join_code})`)) return;
+    try {
+      const result = await callManage({ action: 'move', studentIds: ids, classId: target.id });
+      const failed = result.results.filter(item => item.status === 'error');
+      const moved = result.results.filter(item => item.status === 'moved').length;
+      manage.flash = `🚚 ${moved}명을 옮겼어요. 새 학급코드 <code>${escapeHtml(result.classCode)}</code> 로 로그인하면 돼요.${failed.length ? `<br>옮기지 못한 학생: ${failed.map(item => `${escapeHtml(item.nickname)}(${escapeHtml(item.message)})`).join(', ')}` : ''}`;
+      manage.selected.clear();
+      await loadDashboard(); render(); window.scrollTo(0, 0);
+    } catch (error) { alert(error.message); }
+  }
+  if (action === 'delete-students') {
+    const ids = [...manage.selected];
+    if (!ids.length) return;
+    const names = students.filter(item => manage.selected.has(item.id)).map(item => item.nickname);
+    if (!confirm(`정말 ${names.slice(0, 5).join(', ')}${names.length > 5 ? ` 외 ${names.length - 5}명` : ''} 학생 계정을 삭제할까요?\n독서 기록과 받은 칭찬도 모두 사라지고 되돌릴 수 없어요.`)) return;
+    if (ids.length > 1 && prompt(`${ids.length}명을 한꺼번에 삭제해요. 계속하려면 "삭제"라고 입력하세요.`) !== '삭제') return;
+    try {
+      const result = await callManage({ action: 'delete', studentIds: ids });
+      const failed = result.results.filter(item => item.status === 'error');
+      manage.flash = `🗑 ${result.results.length - failed.length}명의 계정을 삭제했어요.${failed.length ? `<br>삭제하지 못한 학생: ${failed.map(item => escapeHtml(item.nickname)).join(', ')}` : ''}`;
+      manage.selected.clear();
+      await loadDashboard(); render(); window.scrollTo(0, 0);
+    } catch (error) { alert(error.message); }
+  }
 });
