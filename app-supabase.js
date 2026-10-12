@@ -119,7 +119,7 @@ const levelForCount = count => LEVELS.reduce((r, x) => count >= x[0] ? x : r, LE
 const levelIcon = item => `<span class="growth-symbol growth-symbol-${LEVELS.indexOf(item)}" aria-hidden="true">${item[2]}</span>`;
 const level = () => levelForCount(data.records.length);
 const nextLevel = () => LEVELS.find(x => x[0] > data.records.length) || LEVELS.at(-1);
-const monthCount = () => { const m = new Date().toISOString().slice(0, 7); return data.records.filter(r => String(r.read_date || r.date).startsWith(m)).length; };
+const monthCount = () => { const m = today().slice(0, 7); return data.records.filter(r => String(r.read_date || r.date).startsWith(m)).length; };
 const pickMission = () => MISSIONS[Math.floor(Math.random() * MISSIONS.length)];
 const dayOfYear = date => Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(date.getFullYear(), 0, 0)) / 86400000);
 const dailyRecommendationSeed = grade => {

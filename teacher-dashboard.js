@@ -67,7 +67,7 @@ function classPanel() {
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 }[char]));
-const monthKey = new Date().toISOString().slice(0, 7);
+const monthKey = dateText(new Date()).slice(0, 7);
 const teacherEmail = nickname => {
   const bytes = new TextEncoder().encode(nickname.trim());
   let binary = '';
