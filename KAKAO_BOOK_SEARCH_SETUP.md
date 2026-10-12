@@ -48,5 +48,3 @@ Supabase Dashboard의 **Edge Functions**에서 **Deploy a new function → Via E
 - Edge Function 이름이 정확히 `kakao-book-search`인지
 - Function 배포가 성공했는지
 - 카카오 REST API 키를 재발급했다면 Supabase Secret도 새 값으로 바꿨는지
-
-기존 `naver-book-search` Function은 더 이상 앱에서 호출하지 않지만, 삭제하지 않고 남겨두어도 됩니다. 네이버 Client Secret은 만료·노출 가능성이 있으므로 네이버 개발자센터에서 폐기하거나 재발급하는 것을 권장합니다.
