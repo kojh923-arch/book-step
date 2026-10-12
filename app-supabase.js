@@ -143,6 +143,7 @@ async function loadRecords() {
   const { data: fbRows } = await sb.from('teacher_feedback').select('record_id,stamp,comment,seen_at');
   data.feedback = Object.fromEntries((fbRows || []).map(row => [row.record_id, row]));
   await loadCommunity();
+  await loadRoom();
 }
 async function loadProfile(user) {
   const { data: profile } = await sb.from('profiles').select('nickname').eq('id', user.id).maybeSingle();
@@ -229,7 +230,7 @@ async function registerStudent(nickname, password, classCode, classInfo = {}) {
   if (!response.ok) throw new Error(result.error || '회원가입에 실패했어요.');
 }
 
-function layout(content, active = 'home') { return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${esc(data.nickname)}님의 독서 기록</small></div></div><div class="topbar-actions"><button class="ghost-button" data-action="logout">로그아웃</button></div></header><nav class="nav-tabs"><button class="${active === 'home' ? 'active' : ''}" data-view="home">홈</button><button class="${active === 'record' ? 'active' : ''}" data-view="record">독서 기록</button><button class="${active === 'history' ? 'active' : ''}" data-view="history">저장 내역</button><button class="${active === 'growth' ? 'active' : ''}" data-view="growth">성장 현황</button></nav>${content}</div></div>`; }
+function layout(content, active = 'home') { return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${esc(data.nickname)}님의 독서 기록</small></div></div><div class="topbar-actions"><button class="ghost-button" data-action="logout">로그아웃</button></div></header><nav class="nav-tabs"><button class="${active === 'home' ? 'active' : ''}" data-view="home">홈</button><button class="${active === 'record' ? 'active' : ''}" data-view="record">독서 기록</button><button class="${active === 'history' ? 'active' : ''}" data-view="history">저장 내역</button><button class="${active === 'growth' ? 'active' : ''}" data-view="growth">성장 현황</button><button class="${active === 'room' ? 'active' : ''}" data-view="room">내 방</button></nav>${content}</div></div>`; }
 function homeRecommendations() {
   const cards = state.recommendationLoading || !state.recommendations.length
     ? ['junior', 'senior'].map(grade => `<article class="recommendation-card ${grade} loading"><div class="recommendation-copy"><span class="recommendation-tag">${grade === 'junior' ? '🌼 저학년 추천' : '🌿 고학년 추천'}</span><strong>오늘의 책을 고르고 있어요…</strong><p>잠시만 기다려 주세요.</p></div></article>`).join('')
@@ -273,10 +274,14 @@ function growth() {
       : `${item[0]}권 이상 필요`;
     return `<article class="roadmap-card ${stateName}"><div class="roadmap-icon">${levelIcon(item)}</div><div class="roadmap-copy"><strong>LV.${index} ${item[1]}</strong><span>${detail}</span></div><em>${label}</em></article>`;
   }).join('');
-  return layout(`<section class="page-title"><div><p class="eyebrow">MY READING GROWTH</p><h1>성장 현황</h1><p class="subtitle">읽은 책과 미션 기록이 나의 성장으로 이어져요.</p></div></section><section class="panel"><div class="level-row"><div class="level-icon">${levelIcon(lv)}</div><div class="level-copy"><div class="level-title">LV.${currentIndex} ${lv[1]}</div><p class="subtitle" style="margin:6px 0">총 ${data.records.length}권 · 스티커 ${stickerCount()}개</p></div></div></section><section class="roadmap-section"><div class="roadmap-heading"><div><p class="eyebrow">LEVEL ROADMAP</p><h2>나의 성장 레벨 로드맵</h2><p class="subtitle">독서 권수가 쌓일 때마다 나의 성장 레벨과 업적이 한 단계 높아져요!</p></div><span class="roadmap-total">현재 ${data.records.length}권</span></div><div class="roadmap-grid">${roadmap}</div></section>`, 'growth'); }
-function success() { return layout(`<section class="success"><div class="sticker-pop">⭐</div><p class="eyebrow">MISSION COMPLETE</p><h2>독서 기록이 저장됐어요!</h2><p class="subtitle">스티커 1개를 받았어요.<br>다음 책도 기록해 볼까요?</p><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="record">다음 책 기록하기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></section>`, 'home'); }
-function levelUp() { const gained = state.levelUp || level(); const next = LEVELS.find(item => item[0] > data.records.length); const confetti = Array.from({ length: 28 }, (_, index) => `<i class="confetti-piece piece-${index % 7}" style="--delay:${(index % 7) * 0.08}s;--x:${(index * 37) % 94}%"></i>`).join(''); return layout(`<section class="level-up-card"><div class="confetti" aria-hidden="true">${confetti}</div><div class="level-up-icon">${levelIcon(gained)}</div><p class="eyebrow">LEVEL UP!</p><h1>축하해요!</h1><h2>LV.${LEVELS.indexOf(gained)} ${esc(gained[1])} 달성</h2><p class="subtitle">책 ${data.records.length}권을 읽고 미션을 완성했어요.<br>나의 독서 실력이 한 단계 자랐습니다.</p><div class="level-up-progress"><span>${next ? `다음 레벨까지 ${next[0] - data.records.length}권` : '최고 레벨 달성!'}</span></div><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="growth">성장 현황 보기</button><button class="secondary-button" data-view="record">다음 책 기록하기</button></div></section>`, 'growth'); }
-function render() { document.querySelector('#app').innerHTML = data.nickname ? (state.view === 'home' ? home() : state.view === 'record' ? (state.mission ? missionView() : recordForm()) : state.view === 'history' ? history() : state.view === 'growth' ? growth() : state.view === 'success' ? success() : state.view === 'levelup' ? levelUp() : home()) : auth(); }
+  return layout(`<section class="page-title"><div><p class="eyebrow">MY READING GROWTH</p><h1>성장 현황</h1><p class="subtitle">읽은 책과 미션 기록이 나의 성장으로 이어져요.</p></div></section><section class="panel"><div class="level-row"><div class="level-icon">${levelIcon(lv)}</div><div class="level-copy"><div class="level-title">LV.${currentIndex} ${lv[1]}</div><p class="subtitle" style="margin:6px 0">총 ${data.records.length}권 · 스티커 ${stickerCount()}개 (사용 가능 ${stickersAvailable()}개)</p></div></div></section><section class="roadmap-section"><div class="roadmap-heading"><div><p class="eyebrow">LEVEL ROADMAP</p><h2>나의 성장 레벨 로드맵</h2><p class="subtitle">독서 권수가 쌓일 때마다 나의 성장 레벨과 업적이 한 단계 높아져요!</p></div><span class="roadmap-total">현재 ${data.records.length}권</span></div><div class="roadmap-grid">${roadmap}</div></section>`, 'growth'); }
+function success() { return layout(`<section class="success"><div class="sticker-pop">⭐</div><p class="eyebrow">MISSION COMPLETE</p><h2>독서 기록이 저장됐어요!</h2><p class="subtitle">스티커 1개를 받았어요.<br>다음 책도 기록해 볼까요?</p><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="record">다음 책 기록하기</button><button class="secondary-button" data-view="room">스티커로 방 꾸미기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></section>`, 'home'); }
+function levelGiftNote(item) {
+  const gifts = (data.room?.items || []).filter(gift => gift.reward_level === LEVELS.indexOf(item));
+  return gifts.length ? `<p class="level-gift">🎁 새 선물 도착! ${gifts.map(gift => `${esc(gift.emoji)} ${esc(gift.name)}`).join(', ')} — <button class="text-button" data-view="room">내 방에서 놓아 보기</button></p>` : '';
+}
+function levelUp() { const gained = state.levelUp || level(); const next = LEVELS.find(item => item[0] > data.records.length); const confetti = Array.from({ length: 28 }, (_, index) => `<i class="confetti-piece piece-${index % 7}" style="--delay:${(index % 7) * 0.08}s;--x:${(index * 37) % 94}%"></i>`).join(''); return layout(`<section class="level-up-card"><div class="confetti" aria-hidden="true">${confetti}</div><div class="level-up-icon">${levelIcon(gained)}</div><p class="eyebrow">LEVEL UP!</p><h1>축하해요!</h1><h2>LV.${LEVELS.indexOf(gained)} ${esc(gained[1])} 달성</h2><p class="subtitle">책 ${data.records.length}권을 읽고 미션을 완성했어요.<br>나의 독서 실력이 한 단계 자랐습니다.</p>${levelGiftNote(gained)}<div class="level-up-progress"><span>${next ? `다음 레벨까지 ${next[0] - data.records.length}권` : '최고 레벨 달성!'}</span></div><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="growth">성장 현황 보기</button><button class="secondary-button" data-view="record">다음 책 기록하기</button></div></section>`, 'growth'); }
+function render() { document.querySelector('#app').innerHTML = data.nickname ? (state.view === 'home' ? home() : state.view === 'record' ? (state.mission ? missionView() : recordForm()) : state.view === 'history' ? history() : state.view === 'growth' ? growth() : state.view === 'success' ? success() : state.view === 'levelup' ? levelUp() : state.view === 'room' ? roomView() : home()) : auth(); }
 function startMission(form) {
   if (!form.reportValidity()) return;
   const dup = findDuplicateRecord(form.querySelector('#title').value);
@@ -448,7 +453,8 @@ async function loadCommunity() {
   if (!ranking.error) data.ranking = ranking.data || [];
   if (!bonus.error) data.bonus = Number(bonus.data) || 0;
 }
-function stickerCount() { return data.records.length + (data.bonus || 0); }
+const stampBonus = () => Math.floor(Object.keys(data.feedback || {}).length / 3);
+function stickerCount() { return data.records.length + (data.bonus || 0) + stampBonus(); }
 function shortDate(text) { const [, m, d] = String(text).slice(0, 10).split('-'); return `${Number(m)}/${Number(d)}`; }
 function challengeCard(item) {
   const target = Number(item.target_books), progress = Number(item.progress), mine = Number(item.my_count);
@@ -474,3 +480,106 @@ function communityPanel() {
   const ranking = rows ? `<ol class="rank-list">${rows}</ol>${meNote}` : '<div class="empty">학급에 가입하면 같은 학년 친구들과 함께 볼 수 있어요.</div>';
   return `<section class="community-grid"><section class="panel"><p class="eyebrow">CLASS CHALLENGE</p><h2>우리 반 챌린지</h2>${challenges}</section><section class="panel"><p class="eyebrow">THIS MONTH</p><h2>우리 학년 독서왕 TOP 5</h2><p class="subtitle">이번 달에 읽은 책 권수예요.</p>${ranking}</section></section>`;
 }
+
+// 내 방 꾸미기: 스티커로 아이템을 사서 슬롯에 놓아요. (supabase-room.sql)
+const ROOM_SLOTS = [
+  ['wallpaper', '벽지', '🎨'], ['floor', '바닥', '🟫'], ['window', '창문', '🪟'], ['wall_deco', '벽 장식', '🖼️'], ['lamp', '조명', '💡'], ['shelf', '책장', '📚'],
+  ['bed', '침대', '🛏️'], ['desk', '책상', '🪑'], ['rug', '러그', '🧶'], ['plant', '화분', '🪴'], ['pet', '반려동물', '🐱']
+];
+state.roomSlot = 'wallpaper';
+state.roomMode = 'mine';
+state.friends = null;
+let roomBusy = false;
+async function loadFriends() {
+  state.friends = { loading: true, rows: [] };
+  const { data: rows, error } = await sb.rpc('classmate_rooms');
+  state.friends = { loading: false, error: Boolean(error), rows: rows || [] };
+}
+function friendsPanel() {
+  if (!state.friends || state.friends.loading) return '<section class="panel"><div class="empty">친구들의 방을 불러오는 중이에요…</div></section>';
+  if (state.friends.error) return '<section class="panel"><div class="empty">친구 방을 불러오지 못했어요. (supabase-room.sql을 다시 실행해야 해요)</div></section>';
+  if (!state.friends.rows.length) return '<section class="panel"><div class="empty">같은 반 친구가 아직 없어요. 친구가 가입하면 여기에서 방을 구경할 수 있어요.</div></section>';
+  return `<section class="friend-grid">${state.friends.rows.map(row => `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, true)}</article>`).join('')}</section>`;
+}
+async function loadRoom() {
+  data.room = { ready: false, items: [], owned: [], placed: {} };
+  if (!sb) return;
+  const [items, owned, placed] = await Promise.all([
+    sb.from('room_items').select('*').order('price').order('id'),
+    sb.from('user_items').select('item_id'),
+    sb.from('user_room').select('slot,item_id')
+  ]);
+  if (items.error || owned.error || placed.error) return;
+  data.room = { ready: true, items: items.data || [], owned: (owned.data || []).map(row => row.item_id), placed: Object.fromEntries((placed.data || []).map(row => [row.slot, row.item_id])) };
+}
+const roomItemById = id => data.room?.items.find(item => item.id === id);
+const roomIsDefault = item => item.price === 0 && item.reward_level == null;
+const roomOwned = item => roomIsDefault(item) || (item.reward_level != null && LEVELS.indexOf(level()) >= item.reward_level) || Boolean(data.room?.owned.includes(item.id));
+const roomSpent = () => (data.room?.owned || []).reduce((sum, id) => sum + (roomItemById(id)?.price || 0), 0);
+function stickersAvailable() { return Math.max(0, stickerCount() - roomSpent()); }
+const roomDefault = slot => data.room?.items.find(item => item.slot === slot && roomIsDefault(item));
+const roomPlaced = (slot, placedMap = data.room?.placed) => roomItemById(placedMap?.[slot]) || roomDefault(slot);
+const roomVisual = item => item.color ? `<span class="room-swatch" style="background:${esc(item.color)}"></span>` : esc(item.emoji);
+function roomScene(placedMap = data.room.placed, readonly = false) {
+  const wall = roomPlaced('wallpaper', placedMap), floor = roomPlaced('floor', placedMap);
+  const slots = ROOM_SLOTS.filter(([slot]) => slot !== 'wallpaper' && slot !== 'floor').map(([slot, label]) => {
+    const item = roomPlaced(slot, placedMap);
+    if (readonly) return item ? `<span class="room-slot slot-${slot} filled" title="${esc(item.name)}">${esc(item.emoji)}</span>` : '';
+    return `<button class="room-slot slot-${slot}${item ? ' filled' : ''}${state.roomSlot === slot ? ' selected' : ''}" data-action="pick-slot" data-slot="${slot}" aria-label="${esc(label)}${item ? `: ${esc(item.name)}` : ' 비어 있음'}">${item ? esc(item.emoji) : `<small>+ ${esc(label)}</small>`}</button>`;
+  }).join('');
+  const style = `--wall:${esc(wall?.color || '#fff4dc')};--floor:${esc(floor?.color || '#e8c9a0')}`;
+  if (readonly) return `<div class="room room-mini" style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${slots}</div>`;
+  return `<div class="room" style="${style}"><button class="room-wall${state.roomSlot === 'wallpaper' ? ' selected' : ''}" data-action="pick-slot" data-slot="wallpaper" aria-label="벽지 바꾸기"></button><button class="room-floor${state.roomSlot === 'floor' ? ' selected' : ''}" data-action="pick-slot" data-slot="floor" aria-label="바닥 바꾸기"></button>${slots}</div>`;
+}
+function roomItemCard(item) {
+  const lv = LEVELS.indexOf(level());
+  const placed = data.room.placed[item.slot] === item.id || (!data.room.placed[item.slot] && roomIsDefault(item));
+  let action;
+  if (placed) action = `<button class="secondary-button" data-action="clear-slot" data-slot="${esc(item.slot)}"${roomIsDefault(item) ? ' disabled' : ''}>${roomIsDefault(item) ? '사용 중' : '빼기'}</button>`;
+  else if (roomOwned(item)) action = `<button class="primary-button" data-action="place-item" data-item-id="${esc(item.id)}">놓기</button>`;
+  else if (item.reward_level != null) action = `<button class="secondary-button" disabled>🎁 LV.${item.reward_level} 선물</button>`;
+  else if (lv < item.unlock_level) action = `<button class="secondary-button" disabled>🔒 LV.${item.unlock_level}</button>`;
+  else if (stickersAvailable() < item.price) action = `<button class="secondary-button" disabled>⭐ ${item.price} (${item.price - stickersAvailable()}개 부족)</button>`;
+  else action = `<button class="primary-button" data-action="buy-item" data-item-id="${esc(item.id)}">⭐ ${item.price} 사기</button>`;
+  return `<article class="shop-item${placed ? ' placed' : ''}"><div class="shop-icon">${roomVisual(item)}</div><strong>${esc(item.name)}</strong>${action}</article>`;
+}
+function roomView() {
+  const head = `<section class="page-title"><div><p class="eyebrow">MY ROOM</p><h1>내 방 꾸미기</h1><p class="subtitle">책을 읽고 받은 스티커로 방을 꾸며 보세요. 책 1권을 기록하면 스티커 1개를 받아요.</p></div><span class="sticker-wallet">⭐ 사용 가능 ${data.room?.ready ? stickersAvailable() : 0}개</span></section>`;
+  if (!data.room?.ready) return layout(`${head}<section class="panel"><div class="empty">내 방을 불러오지 못했어요.<br>선생님께 문의해 주세요. (supabase-room.sql 실행 필요)</div></section>`, 'room');
+  const modes = `<div class="room-modes"><button class="slot-tab${state.roomMode === 'mine' ? ' active' : ''}" data-action="room-mode" data-mode="mine">🏠 내 방</button><button class="slot-tab${state.roomMode === 'friends' ? ' active' : ''}" data-action="room-mode" data-mode="friends">👫 친구 방 구경</button></div>`;
+  if (state.roomMode === 'friends') return layout(`${head}${modes}${friendsPanel()}`, 'room');
+  const tabs = ROOM_SLOTS.map(([slot, label, icon]) => `<button class="slot-tab${state.roomSlot === slot ? ' active' : ''}" data-action="pick-slot" data-slot="${slot}">${icon} ${esc(label)}</button>`).join('');
+  const items = data.room.items.filter(item => item.slot === state.roomSlot).map(roomItemCard).join('');
+  return layout(`${head}${modes}${roomScene()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p><section class="panel shop-panel"><div class="slot-tabs">${tabs}</div><div class="shop-grid">${items || '<div class="empty">아직 준비된 아이템이 없어요.</div>'}</div></section>`, 'room');
+}
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-action]');
+  const action = el?.dataset.action;
+  if (!['pick-slot', 'buy-item', 'place-item', 'clear-slot', 'room-mode'].includes(action)) return;
+  if (action === 'pick-slot') { state.roomSlot = el.dataset.slot; render(); return; }
+  if (action === 'room-mode') {
+    state.roomMode = el.dataset.mode;
+    if (state.roomMode === 'friends' && sb) { state.friends = null; render(); await loadFriends(); }
+    render(); return;
+  }
+  if (roomBusy || !sb) return;
+  roomBusy = true;
+  try {
+    if (action === 'buy-item') {
+      const id = el.dataset.itemId;
+      const { error } = await sb.rpc('buy_item', { p_item_id: id });
+      if (error) throw error;
+      const placed = await sb.rpc('place_item', { p_item_id: id });
+      if (placed.error) throw placed.error;
+    } else if (action === 'place-item') {
+      const { error } = await sb.rpc('place_item', { p_item_id: el.dataset.itemId });
+      if (error) throw error;
+    } else {
+      const { error } = await sb.rpc('clear_slot', { p_slot: el.dataset.slot });
+      if (error) throw error;
+    }
+    await loadRoom();
+  } catch (error) { alert(error.message || '처리하지 못했어요. 잠시 후 다시 시도해 주세요.'); await loadRoom().catch(() => {}); }
+  roomBusy = false;
+  render();
+});
