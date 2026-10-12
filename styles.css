@@ -503,3 +503,36 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .modal-actions .secondary-button + .delete-record-button, .modal-actions .edit-record-button { margin-right: 8px; }
 .edit-record-button { border: 0; background: transparent; color: var(--blue-dark); font-size: 13px; font-weight: 900; padding: 10px 0; cursor: pointer; }
 .dup-note { margin-top: 8px; padding: 8px 12px; border-radius: 12px; background: #fff6e8; color: #8a5a00; font-size: .9rem; }
+
+/* 내 방 꾸미기 */
+.sticker-wallet { align-self: center; background: var(--yellow); color: var(--ink); font-weight: 900; border-radius: 999px; padding: 10px 16px; white-space: nowrap; }
+.room { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; max-height: 460px; width: 100%; margin: 0 auto 22px; border-radius: 24px; overflow: hidden; border: 3px solid #fff; box-shadow: var(--shadow); background: var(--wall); }
+.room-wall, .room-floor { position: absolute; left: 0; right: 0; border: 0; padding: 0; cursor: pointer; }
+.room-wall { top: 0; height: 58%; background: var(--wall); }
+.room-floor { bottom: 0; height: 42%; background: var(--floor); border-top: 6px solid rgba(0, 0, 0, .08); }
+.room-wall.selected, .room-floor.selected { box-shadow: inset 0 0 0 4px rgba(47, 124, 246, .55); }
+.room-slot { position: absolute; display: grid; place-items: center; width: 17%; aspect-ratio: 1; border: 2px dashed rgba(24, 55, 91, .28); border-radius: 16px; background: transparent; font-size: 11cqw; line-height: 1; padding: 0; color: var(--ink); cursor: pointer; }
+.room-slot.filled { border-color: transparent; }
+.room-slot small { font-size: 1.5cqw; font-weight: 800; color: rgba(24, 55, 91, .6); line-height: 1.2; text-align: center; padding: 0 2px; }
+.room-slot.selected { border: 3px solid var(--blue); background: rgba(255, 255, 255, .45); }
+.slot-window { left: 6%; top: 8%; }
+.slot-wall_deco { left: 30%; top: 6%; width: 13%; font-size: 8cqw; }
+.slot-lamp { left: 48%; top: 6%; width: 13%; font-size: 8cqw; }
+.slot-shelf { left: 66%; top: 10%; width: 22%; font-size: 14cqw; }
+.slot-bed { left: 4%; top: 44%; width: 26%; font-size: 17cqw; }
+.slot-desk { left: 35%; top: 48%; width: 20%; font-size: 13cqw; }
+.slot-rug { left: 38%; top: 74%; width: 20%; aspect-ratio: 2 / 1; font-size: 8cqw; }
+.slot-plant { left: 79%; top: 56%; width: 15%; font-size: 10cqw; }
+.slot-pet { left: 60%; top: 68%; width: 15%; font-size: 9cqw; }
+.shop-panel { padding: 18px; }
+.slot-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 14px; }
+.slot-tab { flex: none; border: 1px solid var(--line); background: #f5fbff; color: var(--muted); border-radius: 999px; padding: 8px 14px; font-weight: 800; }
+.slot-tab.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+.shop-item { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 10px; border: 2px solid var(--line); border-radius: 18px; background: #fff; text-align: center; }
+.shop-item.placed { border-color: var(--blue); background: #f2f8ff; }
+.shop-item .primary-button, .shop-item .secondary-button { width: 100%; padding: 9px 8px; font-size: 13px; }
+.shop-item button:disabled { opacity: .6; cursor: not-allowed; }
+.shop-icon { font-size: 40px; line-height: 1; height: 48px; display: grid; place-items: center; }
+.room-swatch { display: block; width: 46px; height: 46px; border-radius: 12px; border: 2px solid rgba(0, 0, 0, .1); }
+@media (max-width: 520px) { .room { aspect-ratio: 4 / 3; } .room-slot small { font-size: 2.6cqw; } .sticker-wallet { margin-top: 8px; display: inline-block; } }
