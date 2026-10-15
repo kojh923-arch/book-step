@@ -1,0 +1,242 @@
+[
+ {
+  "id": "sitting_chair",
+  "name": "좌식 의자",
+  "w": 212,
+  "h": 225
+ },
+ {
+  "id": "headphone_stand",
+  "name": "헤드폰 거치대",
+  "w": 173,
+  "h": 232
+ },
+ {
+  "id": "mini_board",
+  "name": "미니 보드",
+  "w": 213,
+  "h": 220
+ },
+ {
+  "id": "mood_lamp",
+  "name": "무드 등",
+  "w": 165,
+  "h": 225
+ },
+ {
+  "id": "study_partition",
+  "name": "독서실 가림막",
+  "w": 249,
+  "h": 210
+ },
+ {
+  "id": "sitting_ball",
+  "name": "시팅 볼",
+  "w": 194,
+  "h": 228
+ },
+ {
+  "id": "keyboard_mouse",
+  "name": "키보드 & 마우스",
+  "w": 301,
+  "h": 160
+ },
+ {
+  "id": "blanket_basket",
+  "name": "담요 수납함",
+  "w": 232,
+  "h": 223
+ },
+ {
+  "id": "mini_bookrack",
+  "name": "소형 책꽂이",
+  "w": 213,
+  "h": 229
+ },
+ {
+  "id": "eraser_cleaner",
+  "name": "지우개 가루 청소기",
+  "w": 196,
+  "h": 222
+ },
+ {
+  "id": "floor_cushion",
+  "name": "방석",
+  "w": 251,
+  "h": 183
+ },
+ {
+  "id": "pencil_sharpener",
+  "name": "연필깎이",
+  "w": 202,
+  "h": 225
+ },
+ {
+  "id": "mini_shelf",
+  "name": "미니 선반",
+  "w": 263,
+  "h": 201
+ },
+ {
+  "id": "tumbler_rack",
+  "name": "텀블러 건조대",
+  "w": 258,
+  "h": 221
+ },
+ {
+  "id": "wall_pocket",
+  "name": "벽걸이 포켓",
+  "w": 183,
+  "h": 231
+ },
+ {
+  "id": "dday_calendar",
+  "name": "디데이 캘린더",
+  "w": 206,
+  "h": 226
+ },
+ {
+  "id": "memo_clip",
+  "name": "메모 집게",
+  "w": 140,
+  "h": 227
+ },
+ {
+  "id": "scissors_tape",
+  "name": "소형 가위 & 테이프",
+  "w": 218,
+  "h": 226
+ },
+ {
+  "id": "phone_stand",
+  "name": "스마트폰 거치대",
+  "w": 182,
+  "h": 227
+ },
+ {
+  "id": "sleep_mask",
+  "name": "슬립 마스크",
+  "w": 249,
+  "h": 139
+ },
+ {
+  "id": "study_desk",
+  "name": "스터디 책상",
+  "w": 280,
+  "h": 222
+ },
+ {
+  "id": "bookcase5",
+  "name": "5단 책장",
+  "w": 153,
+  "h": 246
+ },
+ {
+  "id": "monstera",
+  "name": "대형 몬스테라",
+  "w": 197,
+  "h": 247
+ },
+ {
+  "id": "design_frame",
+  "name": "디자인 액자",
+  "w": 200,
+  "h": 236
+ },
+ {
+  "id": "acoustic_guitar",
+  "name": "어쿠스틱 기타",
+  "w": 116,
+  "h": 250
+ },
+ {
+  "id": "desktop_pc",
+  "name": "데스크톱 컴퓨터",
+  "w": 241,
+  "h": 216
+ },
+ {
+  "id": "laptop",
+  "name": "노트북",
+  "w": 237,
+  "h": 209
+ },
+ {
+  "id": "tablet_pencil",
+  "name": "태블릿 & 펜슬",
+  "w": 226,
+  "h": 185
+ },
+ {
+  "id": "swivel_chair",
+  "name": "회전 공부의자",
+  "w": 185,
+  "h": 247
+ },
+ {
+  "id": "memo_board",
+  "name": "메모 보드",
+  "w": 233,
+  "h": 221
+ },
+ {
+  "id": "full_mirror",
+  "name": "전신거울",
+  "w": 138,
+  "h": 251
+ },
+ {
+  "id": "storage_bed",
+  "name": "수납 침대",
+  "w": 292,
+  "h": 229
+ },
+ {
+  "id": "drawer3",
+  "name": "3단 서랍장",
+  "w": 209,
+  "h": 255
+ },
+ {
+  "id": "book_cart",
+  "name": "북카트",
+  "w": 219,
+  "h": 240
+ },
+ {
+  "id": "power_strip_box",
+  "name": "멀티탭 가림막",
+  "w": 259,
+  "h": 193
+ },
+ {
+  "id": "stand_lamp",
+  "name": "스탠드 조명",
+  "w": 100,
+  "h": 250
+ },
+ {
+  "id": "floor_table",
+  "name": "좌식 테이블",
+  "w": 263,
+  "h": 189
+ },
+ {
+  "id": "clothes_hanger",
+  "name": "아기자기 행거",
+  "w": 200,
+  "h": 248
+ },
+ {
+  "id": "storage_stool",
+  "name": "수납 스툴",
+  "w": 188,
+  "h": 209
+ },
+ {
+  "id": "air_purifier",
+  "name": "미니 공기청정기",
+  "w": 155,
+  "h": 221
+ }
+]
