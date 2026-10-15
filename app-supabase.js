@@ -486,7 +486,16 @@ const ROOM_SLOTS = [
   ['wallpaper', '벽지', '🎨'], ['floor', '바닥', '🟫'], ['window', '창문', '🪟'], ['wall_deco', '벽 장식', '🖼️'], ['lamp', '조명', '💡'], ['shelf', '책장', '📚'],
   ['bed', '침대', '🛏️'], ['desk', '책상', '🪑'], ['rug', '러그', '🧶'], ['plant', '화분', '🪴'], ['pet', '반려동물', '🐱']
 ];
-state.roomSlot = 'wallpaper';
+state.roomTab = 'furniture';
+state.roomSlot = null;
+const ROOM_TABS = [
+  ['furniture', '🛋️ 가구·소품', ['window', 'wall_deco', 'lamp', 'shelf', 'bed', 'desk', 'rug', 'plant']],
+  ['pet', '🐾 펫', ['pet']], ['wallpaper', '🎨 벽지', ['wallpaper']], ['floor', '🟫 바닥', ['floor']]
+];
+const ROOM_SETS = [[0, '기본 세트'], [1, '첫걸음 세트'], [3, '새싹 세트'], [6, '모험 세트']];
+const roomItemLevel = item => item.reward_level ?? item.unlock_level;
+const roomSetFor = lv => ROOM_SETS.reduce((found, set) => lv >= set[0] ? set : found, ROOM_SETS[0]);
+const roomSlotLabel = slot => ROOM_SLOTS.find(row => row[0] === slot)?.[1] || slot;
 state.roomMode = 'mine';
 state.friends = null;
 let roomBusy = false;
@@ -529,7 +538,7 @@ function roomScene(placedMap = data.room.placed, readonly = false) {
   }).join('');
   const style = `--wall:${esc(wall?.color || '#fff4dc')};--floor:${esc(floor?.color || '#e8c9a0')}`;
   if (readonly) return `<div class="room room-mini" style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${slots}</div>`;
-  return `<div class="room" style="${style}"><button class="room-wall${state.roomSlot === 'wallpaper' ? ' selected' : ''}" data-action="pick-slot" data-slot="wallpaper" aria-label="벽지 바꾸기"></button><button class="room-floor${state.roomSlot === 'floor' ? ' selected' : ''}" data-action="pick-slot" data-slot="floor" aria-label="바닥 바꾸기"></button>${slots}</div>`;
+  return `<div class="room" style="${style}"><button class="room-wall${state.roomTab === 'wallpaper' ? ' selected' : ''}" data-action="pick-slot" data-slot="wallpaper" aria-label="벽지 바꾸기"></button><button class="room-floor${state.roomTab === 'floor' ? ' selected' : ''}" data-action="pick-slot" data-slot="floor" aria-label="바닥 바꾸기"></button>${slots}</div>`;
 }
 function roomItemCard(item) {
   const lv = LEVELS.indexOf(level());
@@ -541,22 +550,46 @@ function roomItemCard(item) {
   else if (lv < item.unlock_level) action = `<button class="secondary-button" disabled>🔒 LV.${item.unlock_level}</button>`;
   else if (stickersAvailable() < item.price) action = `<button class="secondary-button" disabled>⭐ ${item.price} (${item.price - stickersAvailable()}개 부족)</button>`;
   else action = `<button class="primary-button" data-action="buy-item" data-item-id="${esc(item.id)}">⭐ ${item.price} 사기</button>`;
-  return `<article class="shop-item${placed ? ' placed' : ''}"><div class="shop-icon">${roomVisual(item)}</div><strong>${esc(item.name)}</strong>${action}</article>`;
+  const locked = !placed && !roomOwned(item) && lv < roomItemLevel(item);
+  const chip = state.roomTab === 'furniture' ? `<small class="shop-slot">${esc(roomSlotLabel(item.slot))}</small>` : '';
+  return `<article class="shop-item${placed ? ' placed' : ''}${locked ? ' locked' : ''}"><div class="shop-icon">${roomVisual(item)}</div><strong>${esc(item.name)}</strong>${chip}${action}</article>`;
 }
 function roomView() {
   const head = `<section class="page-title"><div><p class="eyebrow">MY ROOM</p><h1>내 방 꾸미기</h1><p class="subtitle">책을 읽고 받은 스티커로 방을 꾸며 보세요. 책 1권을 기록하면 스티커 1개를 받아요.</p></div><span class="sticker-wallet">⭐ 사용 가능 ${data.room?.ready ? stickersAvailable() : 0}개</span></section>`;
   if (!data.room?.ready) return layout(`${head}<section class="panel"><div class="empty">내 방을 불러오지 못했어요.<br>선생님께 문의해 주세요. (supabase-room.sql 실행 필요)</div></section>`, 'room');
   const modes = `<div class="room-modes"><button class="slot-tab${state.roomMode === 'mine' ? ' active' : ''}" data-action="room-mode" data-mode="mine">🏠 내 방</button><button class="slot-tab${state.roomMode === 'friends' ? ' active' : ''}" data-action="room-mode" data-mode="friends">👫 친구 방 구경</button></div>`;
   if (state.roomMode === 'friends') return layout(`${head}${modes}${friendsPanel()}`, 'room');
-  const tabs = ROOM_SLOTS.map(([slot, label, icon]) => `<button class="slot-tab${state.roomSlot === slot ? ' active' : ''}" data-action="pick-slot" data-slot="${slot}">${icon} ${esc(label)}</button>`).join('');
-  const items = data.room.items.filter(item => item.slot === state.roomSlot).map(roomItemCard).join('');
-  return layout(`${head}${modes}${roomScene()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p><section class="panel shop-panel"><div class="slot-tabs">${tabs}</div><div class="shop-grid">${items || '<div class="empty">아직 준비된 아이템이 없어요.</div>'}</div></section>`, 'room');
+  const lv = LEVELS.indexOf(level());
+  const tab = ROOM_TABS.find(row => row[0] === state.roomTab) || ROOM_TABS[0];
+  const tabs = ROOM_TABS.map(([key, label]) => `<button class="slot-tab${state.roomTab === key ? ' active' : ''}" data-action="room-tab" data-tab="${key}">${label}</button>`).join('');
+  const filter = tab[0] === 'furniture' ? `<div class="slot-filter"><button class="chip${state.roomSlot ? '' : ' active'}" data-action="room-filter" data-slot="">전체</button>${tab[2].map(slot => `<button class="chip${state.roomSlot === slot ? ' active' : ''}" data-action="room-filter" data-slot="${slot}">${esc(roomSlotLabel(slot))}</button>`).join('')}</div>` : '';
+  const visible = data.room.items.filter(item => item.reward_level == null && tab[2].includes(item.slot) && (!state.roomSlot || item.slot === state.roomSlot));
+  const sets = ROOM_SETS.map(([min, name], index) => {
+    const next = ROOM_SETS[index + 1]?.[0] ?? Infinity;
+    const group = visible.filter(item => item.unlock_level >= min && item.unlock_level < next);
+    if (!group.length) return '';
+    const lock = lv < min ? `<span class="set-lock">🔒 Lv.${min} 달성 시 열려요</span>` : '';
+    return `<div class="shop-set"><h3>${name} <small>${group.length}종</small>${lock}</h3><div class="shop-grid">${group.map(roomItemCard).join('')}</div></div>`;
+  }).join('');
+  return layout(`${head}${modes}${roomScene()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p>${roomGifts(lv)}<section class="panel shop-panel"><div class="slot-tabs">${tabs}</div>${filter}${sets || '<div class="empty">아직 준비된 아이템이 없어요.</div>'}</section>`, 'room');
+}
+function roomGifts(lv) {
+  const gifts = data.room.items.filter(item => item.reward_level != null).sort((a, b) => a.reward_level - b.reward_level);
+  if (!gifts.length) return '';
+  const cards = gifts.map(item => {
+    if (lv < item.reward_level) return `<div class="gift-card locked"><span class="gift-icon">?</span><b>Lv.${item.reward_level}</b></div>`;
+    const placed = data.room.placed[item.slot] === item.id;
+    return `<button class="gift-card${placed ? ' placed' : ''}" data-action="${placed ? 'clear-slot' : 'place-item'}" data-item-id="${esc(item.id)}" data-slot="${esc(item.slot)}" title="${esc(item.name)}"><span class="gift-icon">${roomVisual(item)}</span><b>${esc(item.name)}</b><small>${placed ? '빼기' : '놓기'}</small></button>`;
+  }).join('');
+  return `<section class="panel gift-panel"><div class="gift-head"><strong>🎁 레벨 선물</strong><small>레벨이 오를 때마다 새 선물이 와요</small></div><div class="gift-row">${cards}</div></section>`;
 }
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
   const action = el?.dataset.action;
-  if (!['pick-slot', 'buy-item', 'place-item', 'clear-slot', 'room-mode'].includes(action)) return;
-  if (action === 'pick-slot') { state.roomSlot = el.dataset.slot; render(); return; }
+  if (!['pick-slot', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode'].includes(action)) return;
+  if (action === 'pick-slot') { const slot = el.dataset.slot; state.roomTab = ROOM_TABS.find(row => row[2].includes(slot))[0]; state.roomSlot = state.roomTab === 'furniture' ? slot : null; render(); return; }
+  if (action === 'room-tab') { state.roomTab = el.dataset.tab; state.roomSlot = null; render(); return; }
+  if (action === 'room-filter') { state.roomSlot = el.dataset.slot || null; render(); return; }
   if (action === 'room-mode') {
     state.roomMode = el.dataset.mode;
     if (state.roomMode === 'friends' && sb) { state.friends = null; render(); await loadFriends(); }

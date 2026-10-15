@@ -546,3 +546,26 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .room-mini { max-width: none; margin: 0; aspect-ratio: 16 / 10; pointer-events: none; }
 .room-mini .room-slot { cursor: default; border-color: transparent; }
 .level-gift { background: var(--yellow); border-radius: 14px; padding: 10px 14px; font-weight: 800; }
+
+/* 내 방: 세트 · 필터 · 레벨 선물 */
+.slot-filter { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 8px; }
+.chip { flex: none; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 800; }
+.chip.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+.shop-set { margin-top: 16px; }
+.shop-set h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; font-size: 16px; }
+.shop-set h3 small { color: var(--muted); font-size: 12px; }
+.set-lock { background: #eef1f6; color: #66758c; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 800; }
+.shop-item.locked { opacity: .55; background: #f7f9fc; }
+.shop-slot { color: var(--muted); font-size: 11px; font-weight: 700; }
+.gift-panel { padding: 14px 16px; margin-bottom: 16px; }
+.gift-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.gift-head small { color: var(--muted); font-size: 12px; }
+.gift-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.gift-card { flex: none; width: 92px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 6px; border: 2px solid var(--line); border-radius: 16px; background: #fff; color: var(--ink); font: inherit; }
+.gift-card b { font-size: 12px; text-align: center; }
+.gift-card small { color: var(--blue); font-weight: 800; font-size: 11px; }
+.gift-card.placed { border-color: var(--blue); background: #f2f8ff; }
+.gift-card.locked { background: #f4f6fa; border-style: dashed; color: #9aa8bc; }
+.gift-icon { font-size: 30px; line-height: 1; height: 36px; display: grid; place-items: center; }
+.gift-icon .room-swatch { width: 34px; height: 34px; }
+.slot-tabs .slot-tab { flex: 1 0 auto; padding: 8px 10px; font-size: 13px; white-space: nowrap; }
