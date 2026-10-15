@@ -278,7 +278,7 @@ function growth() {
 function success() { return layout(`<section class="success"><div class="sticker-pop">⭐</div><p class="eyebrow">MISSION COMPLETE</p><h2>독서 기록이 저장됐어요!</h2><p class="subtitle">스티커 1개를 받았어요.<br>다음 책도 기록해 볼까요?</p><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="record">다음 책 기록하기</button><button class="secondary-button" data-view="room">스티커로 방 꾸미기</button><button class="secondary-button" data-view="history">저장 내역 보기</button></div></section>`, 'home'); }
 function levelGiftNote(item) {
   const gifts = (data.room?.items || []).filter(gift => gift.reward_level === LEVELS.indexOf(item));
-  return gifts.length ? `<p class="level-gift">🎁 새 선물 도착! ${gifts.map(gift => `${esc(gift.emoji)} ${esc(gift.name)}`).join(', ')} — <button class="text-button" data-view="room">내 방에서 놓아 보기</button></p>` : '';
+  return gifts.length ? `<p class="level-gift">🎁 새 선물 도착! ${gifts.map(gift => `${esc(gift.name)}`).join(', ')} — <button class="text-button" data-view="room">내 방에서 놓아 보기</button></p>` : '';
 }
 function levelUp() { const gained = state.levelUp || level(); const next = LEVELS.find(item => item[0] > data.records.length); const confetti = Array.from({ length: 28 }, (_, index) => `<i class="confetti-piece piece-${index % 7}" style="--delay:${(index % 7) * 0.08}s;--x:${(index * 37) % 94}%"></i>`).join(''); return layout(`<section class="level-up-card"><div class="confetti" aria-hidden="true">${confetti}</div><div class="level-up-icon">${levelIcon(gained)}</div><p class="eyebrow">LEVEL UP!</p><h1>축하해요!</h1><h2>LV.${LEVELS.indexOf(gained)} ${esc(gained[1])} 달성</h2><p class="subtitle">책 ${data.records.length}권을 읽고 미션을 완성했어요.<br>나의 독서 실력이 한 단계 자랐습니다.</p>${levelGiftNote(gained)}<div class="level-up-progress"><span>${next ? `다음 레벨까지 ${next[0] - data.records.length}권` : '최고 레벨 달성!'}</span></div><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="growth">성장 현황 보기</button><button class="secondary-button" data-view="record">다음 책 기록하기</button></div></section>`, 'growth'); }
 function render() { document.querySelector('#app').innerHTML = data.nickname ? (state.view === 'home' ? home() : state.view === 'record' ? (state.mission ? missionView() : recordForm()) : state.view === 'history' ? history() : state.view === 'growth' ? growth() : state.view === 'success' ? success() : state.view === 'levelup' ? levelUp() : state.view === 'room' ? roomView() : home()) : auth(); }
@@ -481,78 +481,109 @@ function communityPanel() {
   return `<section class="community-grid"><section class="panel"><p class="eyebrow">CLASS CHALLENGE</p><h2>우리 반 챌린지</h2>${challenges}</section><section class="panel"><p class="eyebrow">THIS MONTH</p><h2>우리 학년 독서왕 TOP 5</h2><p class="subtitle">이번 달에 읽은 책 권수예요.</p>${ranking}</section></section>`;
 }
 
-// 내 방 꾸미기: 스티커로 아이템을 사서 슬롯에 놓아요. (supabase-room.sql)
-const ROOM_SLOTS = [
-  ['wallpaper', '벽지', '🎨'], ['floor', '바닥', '🟫'], ['window', '창문', '🪟'], ['wall_deco', '벽 장식', '🖼️'], ['lamp', '조명', '💡'], ['shelf', '책장', '📚'],
-  ['bed', '침대', '🛏️'], ['desk', '책상', '🪑'], ['rug', '러그', '🧶'], ['plant', '화분', '🪴'], ['pet', '반려동물', '🐱']
-];
-state.roomTab = 'furniture';
-state.roomSlot = null;
-const ROOM_TABS = [
-  ['furniture', '🛋️ 가구·소품', ['window', 'wall_deco', 'lamp', 'shelf', 'bed', 'desk', 'rug', 'plant']],
-  ['pet', '🐾 펫', ['pet']], ['wallpaper', '🎨 벽지', ['wallpaper']], ['floor', '🟫 바닥', ['floor']]
-];
+// 내 방 꾸미기: 스티커로 아이템을 사서 방에 자유롭게 놓아요. (supabase-room.sql)
+const ROOM_TABS = [['furniture', '🛋️ 가구·소품'], ['pet', '🐾 펫'], ['wallpaper', '🎨 벽지'], ['floor', '🟫 바닥']];
+const ROOM_CATEGORIES = [['furniture', '가구'], ['seat', '의자·쿠션'], ['lamp', '조명'], ['wall', '벽 장식'], ['decor', '인테리어'], ['tech', '전자기기'], ['stationery', '문구·소품']];
 const ROOM_SETS = [[0, '기본 세트'], [1, '첫걸음 세트'], [3, '새싹 세트'], [6, '모험 세트']];
-const roomItemLevel = item => item.reward_level ?? item.unlock_level;
-const roomSetFor = lv => ROOM_SETS.reduce((found, set) => lv >= set[0] ? set : found, ROOM_SETS[0]);
-const roomSlotLabel = slot => ROOM_SLOTS.find(row => row[0] === slot)?.[1] || slot;
+const ROOM_MAX_OBJECTS = 30;
+state.roomTab = 'furniture';
+state.roomCat = null;
 state.roomMode = 'mine';
 state.friends = null;
+state.selectedObj = null;
 let roomBusy = false;
+let roomDrag = null;
+
+async function loadRoom() {
+  data.room = { ready: false, items: [], owned: [], placed: {}, objects: [] };
+  if (!sb) return;
+  const [items, owned, placed, objects] = await Promise.all([
+    sb.from('room_items').select('*').order('price').order('id'),
+    sb.from('user_items').select('item_id'),
+    sb.from('user_room').select('slot,item_id'),
+    sb.from('room_objects').select('id,item_id,x,y,scale,flip,z').order('z')
+  ]);
+  if (items.error || owned.error || placed.error || objects.error) return;
+  data.room = {
+    ready: true, items: items.data || [], owned: (owned.data || []).map(row => row.item_id),
+    placed: Object.fromEntries((placed.data || []).map(row => [row.slot, row.item_id])),
+    objects: (objects.data || []).map(o => ({ ...o, x: Number(o.x), y: Number(o.y), scale: Number(o.scale) }))
+  };
+  if (!data.room.objects.some(o => o.id === state.selectedObj)) state.selectedObj = null;
+}
 async function loadFriends() {
   state.friends = { loading: true, rows: [] };
   const { data: rows, error } = await sb.rpc('classmate_rooms');
   state.friends = { loading: false, error: Boolean(error), rows: rows || [] };
 }
-function friendsPanel() {
-  if (!state.friends || state.friends.loading) return '<section class="panel"><div class="empty">친구들의 방을 불러오는 중이에요…</div></section>';
-  if (state.friends.error) return '<section class="panel"><div class="empty">친구 방을 불러오지 못했어요. (supabase-room.sql을 다시 실행해야 해요)</div></section>';
-  if (!state.friends.rows.length) return '<section class="panel"><div class="empty">같은 반 친구가 아직 없어요. 친구가 가입하면 여기에서 방을 구경할 수 있어요.</div></section>';
-  return `<section class="friend-grid">${state.friends.rows.map(row => `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, true)}</article>`).join('')}</section>`;
-}
-async function loadRoom() {
-  data.room = { ready: false, items: [], owned: [], placed: {} };
-  if (!sb) return;
-  const [items, owned, placed] = await Promise.all([
-    sb.from('room_items').select('*').order('price').order('id'),
-    sb.from('user_items').select('item_id'),
-    sb.from('user_room').select('slot,item_id')
-  ]);
-  if (items.error || owned.error || placed.error) return;
-  data.room = { ready: true, items: items.data || [], owned: (owned.data || []).map(row => row.item_id), placed: Object.fromEntries((placed.data || []).map(row => [row.slot, row.item_id])) };
-}
 const roomItemById = id => data.room?.items.find(item => item.id === id);
+const roomItemLevel = item => item.reward_level ?? item.unlock_level;
 const roomIsDefault = item => item.price === 0 && item.reward_level == null;
 const roomOwned = item => roomIsDefault(item) || (item.reward_level != null && LEVELS.indexOf(level()) >= item.reward_level) || Boolean(data.room?.owned.includes(item.id));
 const roomSpent = () => (data.room?.owned || []).reduce((sum, id) => sum + (roomItemById(id)?.price || 0), 0);
 function stickersAvailable() { return Math.max(0, stickerCount() - roomSpent()); }
 const roomDefault = slot => data.room?.items.find(item => item.slot === slot && roomIsDefault(item));
 const roomPlaced = (slot, placedMap = data.room?.placed) => roomItemById(placedMap?.[slot]) || roomDefault(slot);
-const roomVisual = item => item.color ? `<span class="room-swatch" style="background:${esc(item.color)}"></span>` : esc(item.emoji);
-function roomScene(placedMap = data.room.placed, readonly = false) {
+const roomVisual = item => item.img ? `<img src="${esc(item.img)}" alt="" loading="lazy" draggable="false" />` : item.color ? `<span class="room-swatch" style="background:${esc(item.color)}"></span>` : esc(item.emoji);
+const roomSetFor = lv => ROOM_SETS.reduce((found, set) => lv >= set[0] ? set : found, ROOM_SETS[0]);
+const placedCount = item => data.room.objects.filter(o => o.item_id === item.id).length;
+const clampNum = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+function objectHtml(obj, readonly) {
+  const item = roomItemById(obj.item_id);
+  if (!item?.img) return '';
+  const selected = !readonly && state.selectedObj === obj.id;
+  const handles = readonly ? '' : ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
+  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale}%;z-index:${10 + Number(obj.z || 0)}"><img src="${esc(item.img)}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
+}
+function roomScene(placedMap = data.room.placed, objects = data.room.objects, readonly = false) {
   const wall = roomPlaced('wallpaper', placedMap), floor = roomPlaced('floor', placedMap);
-  const slots = ROOM_SLOTS.filter(([slot]) => slot !== 'wallpaper' && slot !== 'floor').map(([slot, label]) => {
-    const item = roomPlaced(slot, placedMap);
-    if (readonly) return item ? `<span class="room-slot slot-${slot} filled" title="${esc(item.name)}">${esc(item.emoji)}</span>` : '';
-    return `<button class="room-slot slot-${slot}${item ? ' filled' : ''}${state.roomSlot === slot ? ' selected' : ''}" data-action="pick-slot" data-slot="${slot}" aria-label="${esc(label)}${item ? `: ${esc(item.name)}` : ' 비어 있음'}">${item ? esc(item.emoji) : `<small>+ ${esc(label)}</small>`}</button>`;
-  }).join('');
   const style = `--wall:${esc(wall?.color || '#fff4dc')};--floor:${esc(floor?.color || '#e8c9a0')}`;
-  if (readonly) return `<div class="room room-mini" style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${slots}</div>`;
-  return `<div class="room" style="${style}"><button class="room-wall${state.roomTab === 'wallpaper' ? ' selected' : ''}" data-action="pick-slot" data-slot="wallpaper" aria-label="벽지 바꾸기"></button><button class="room-floor${state.roomTab === 'floor' ? ' selected' : ''}" data-action="pick-slot" data-slot="floor" aria-label="바닥 바꾸기"></button>${slots}</div>`;
+  const objs = [...objects].sort((a, b) => a.z - b.z).map(obj => objectHtml(obj, readonly)).join('');
+  const hint = !readonly && !objects.length ? '<p class="room-empty-hint">아래에서 아이템을 눌러 방에 놓아 보세요!</p>' : '';
+  return `<div class="room${readonly ? ' room-mini' : ''}" ${readonly ? '' : 'id="room-stage"'} style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${objs}${hint}</div>`;
+}
+function objectBar() {
+  const obj = data.room.objects.find(o => o.id === state.selectedObj);
+  const count = `<small class="obj-count">방에 놓은 아이템 ${data.room.objects.length}/${ROOM_MAX_OBJECTS}</small>`;
+  if (!obj) return `<div class="obj-bar" id="obj-bar"><span class="obj-hint">아이템을 눌러 선택하고, 끌어서 옮기고, 모서리를 끌어 크기를 바꿔요.</span>${count}</div>`;
+  const item = roomItemById(obj.item_id);
+  return `<div class="obj-bar active" id="obj-bar"><strong>${esc(item?.name || '')}</strong><button class="secondary-button" data-action="flip-obj">↔ 반전</button><button class="secondary-button" data-action="front-obj">⬆ 앞으로</button><button class="secondary-button danger" data-action="remove-obj">🗑 빼기</button>${count}</div>`;
 }
 function roomItemCard(item) {
   const lv = LEVELS.indexOf(level());
-  const placed = data.room.placed[item.slot] === item.id || (!data.room.placed[item.slot] && roomIsDefault(item));
+  const isObject = item.slot === 'object';
+  const placed = !isObject && (data.room.placed[item.slot] === item.id || (!data.room.placed[item.slot] && roomIsDefault(item)));
+  const n = isObject ? placedCount(item) : 0;
   let action;
   if (placed) action = `<button class="secondary-button" data-action="clear-slot" data-slot="${esc(item.slot)}"${roomIsDefault(item) ? ' disabled' : ''}>${roomIsDefault(item) ? '사용 중' : '빼기'}</button>`;
-  else if (roomOwned(item)) action = `<button class="primary-button" data-action="place-item" data-item-id="${esc(item.id)}">놓기</button>`;
+  else if (roomOwned(item)) action = isObject ? `<button class="primary-button" data-action="add-object" data-item-id="${esc(item.id)}">놓기</button>` : `<button class="primary-button" data-action="place-item" data-item-id="${esc(item.id)}">놓기</button>`;
   else if (item.reward_level != null) action = `<button class="secondary-button" disabled>🎁 LV.${item.reward_level} 선물</button>`;
   else if (lv < item.unlock_level) action = `<button class="secondary-button" disabled>🔒 LV.${item.unlock_level}</button>`;
   else if (stickersAvailable() < item.price) action = `<button class="secondary-button" disabled>⭐ ${item.price} (${item.price - stickersAvailable()}개 부족)</button>`;
   else action = `<button class="primary-button" data-action="buy-item" data-item-id="${esc(item.id)}">⭐ ${item.price} 사기</button>`;
   const locked = !placed && !roomOwned(item) && lv < roomItemLevel(item);
-  const chip = state.roomTab === 'furniture' ? `<small class="shop-slot">${esc(roomSlotLabel(item.slot))}</small>` : '';
-  return `<article class="shop-item${placed ? ' placed' : ''}${locked ? ' locked' : ''}"><div class="shop-icon">${roomVisual(item)}</div><strong>${esc(item.name)}</strong>${chip}${action}</article>`;
+  const note = n ? `<small class="shop-slot">${n}개 놓임</small>` : roomIsDefault(item) && isObject ? '<small class="shop-slot">무료</small>' : '';
+  return `<article class="shop-item${placed || n ? ' placed' : ''}${locked ? ' locked' : ''}"><div class="shop-icon">${roomVisual(item)}</div><strong>${esc(item.name)}</strong>${note}${action}</article>`;
+}
+function roomGifts(lv) {
+  const gifts = data.room.items.filter(item => item.reward_level != null).sort((a, b) => a.reward_level - b.reward_level);
+  if (!gifts.length) return '';
+  const cards = gifts.map(item => {
+    if (lv < item.reward_level) return `<div class="gift-card locked"><span class="gift-icon">?</span><b>Lv.${item.reward_level}</b></div>`;
+    const isObject = item.slot === 'object';
+    const placed = !isObject && data.room.placed[item.slot] === item.id;
+    const action = isObject ? 'add-object' : placed ? 'clear-slot' : 'place-item';
+    const label = isObject ? '놓기' : placed ? '빼기' : '놓기';
+    return `<button class="gift-card${placed || (isObject && placedCount(item)) ? ' placed' : ''}" data-action="${action}" data-item-id="${esc(item.id)}" data-slot="${esc(item.slot)}" title="${esc(item.name)}"><span class="gift-icon">${roomVisual(item)}</span><b>${esc(item.name)}</b><small>${label}</small></button>`;
+  }).join('');
+  return `<section class="panel gift-panel"><div class="gift-head"><strong>🎁 레벨 선물</strong><small>레벨이 오를 때마다 새 선물이 와요</small></div><div class="gift-row">${cards}</div></section>`;
+}
+function friendsPanel() {
+  if (!state.friends || state.friends.loading) return '<section class="panel"><div class="empty">친구들의 방을 불러오는 중이에요…</div></section>';
+  if (state.friends.error) return '<section class="panel"><div class="empty">친구 방을 불러오지 못했어요. (supabase-room.sql을 다시 실행해야 해요)</div></section>';
+  if (!state.friends.rows.length) return '<section class="panel"><div class="empty">같은 반 친구가 아직 없어요. 친구가 가입하면 여기에서 방을 구경할 수 있어요.</div></section>';
+  return `<section class="friend-grid">${state.friends.rows.map(row => `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true)}</article>`).join('')}</section>`;
 }
 function roomView() {
   const head = `<section class="page-title"><div><p class="eyebrow">MY ROOM</p><h1>내 방 꾸미기</h1><p class="subtitle">책을 읽고 받은 스티커로 방을 꾸며 보세요. 책 1권을 기록하면 스티커 1개를 받아요.</p></div><span class="sticker-wallet">⭐ 사용 가능 ${data.room?.ready ? stickersAvailable() : 0}개</span></section>`;
@@ -560,10 +591,10 @@ function roomView() {
   const modes = `<div class="room-modes"><button class="slot-tab${state.roomMode === 'mine' ? ' active' : ''}" data-action="room-mode" data-mode="mine">🏠 내 방</button><button class="slot-tab${state.roomMode === 'friends' ? ' active' : ''}" data-action="room-mode" data-mode="friends">👫 친구 방 구경</button></div>`;
   if (state.roomMode === 'friends') return layout(`${head}${modes}${friendsPanel()}`, 'room');
   const lv = LEVELS.indexOf(level());
-  const tab = ROOM_TABS.find(row => row[0] === state.roomTab) || ROOM_TABS[0];
   const tabs = ROOM_TABS.map(([key, label]) => `<button class="slot-tab${state.roomTab === key ? ' active' : ''}" data-action="room-tab" data-tab="${key}">${label}</button>`).join('');
-  const filter = tab[0] === 'furniture' ? `<div class="slot-filter"><button class="chip${state.roomSlot ? '' : ' active'}" data-action="room-filter" data-slot="">전체</button>${tab[2].map(slot => `<button class="chip${state.roomSlot === slot ? ' active' : ''}" data-action="room-filter" data-slot="${slot}">${esc(roomSlotLabel(slot))}</button>`).join('')}</div>` : '';
-  const visible = data.room.items.filter(item => item.reward_level == null && tab[2].includes(item.slot) && (!state.roomSlot || item.slot === state.roomSlot));
+  const isFurniture = state.roomTab === 'furniture';
+  const filter = isFurniture ? `<div class="slot-filter"><button class="chip${state.roomCat ? '' : ' active'}" data-action="room-filter" data-cat="">전체</button>${ROOM_CATEGORIES.map(([key, label]) => `<button class="chip${state.roomCat === key ? ' active' : ''}" data-action="room-filter" data-cat="${key}">${label}</button>`).join('')}</div>` : '';
+  const visible = data.room.items.filter(item => item.reward_level == null && (isFurniture ? item.slot === 'object' && item.category !== 'pet' && (!state.roomCat || item.category === state.roomCat) : state.roomTab === 'pet' ? item.category === 'pet' : item.slot === state.roomTab));
   const sets = ROOM_SETS.map(([min, name], index) => {
     const next = ROOM_SETS[index + 1]?.[0] ?? Infinity;
     const group = visible.filter(item => item.unlock_level >= min && item.unlock_level < next);
@@ -571,25 +602,68 @@ function roomView() {
     const lock = lv < min ? `<span class="set-lock">🔒 Lv.${min} 달성 시 열려요</span>` : '';
     return `<div class="shop-set"><h3>${name} <small>${group.length}종</small>${lock}</h3><div class="shop-grid">${group.map(roomItemCard).join('')}</div></div>`;
   }).join('');
-  return layout(`${head}${modes}${roomScene()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p>${roomGifts(lv)}<section class="panel shop-panel"><div class="slot-tabs">${tabs}</div>${filter}${sets || '<div class="empty">아직 준비된 아이템이 없어요.</div>'}</section>`, 'room');
+  const empty = state.roomTab === 'pet' ? '펫은 곧 만나요! 🐾' : '아직 준비된 아이템이 없어요.';
+  return layout(`${head}${modes}${roomScene()}${objectBar()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p>${roomGifts(lv)}<section class="panel shop-panel"><div class="slot-tabs">${tabs}</div>${filter}${sets || `<div class="empty">${empty}</div>`}</section>`, 'room');
 }
-function roomGifts(lv) {
-  const gifts = data.room.items.filter(item => item.reward_level != null).sort((a, b) => a.reward_level - b.reward_level);
-  if (!gifts.length) return '';
-  const cards = gifts.map(item => {
-    if (lv < item.reward_level) return `<div class="gift-card locked"><span class="gift-icon">?</span><b>Lv.${item.reward_level}</b></div>`;
-    const placed = data.room.placed[item.slot] === item.id;
-    return `<button class="gift-card${placed ? ' placed' : ''}" data-action="${placed ? 'clear-slot' : 'place-item'}" data-item-id="${esc(item.id)}" data-slot="${esc(item.slot)}" title="${esc(item.name)}"><span class="gift-icon">${roomVisual(item)}</span><b>${esc(item.name)}</b><small>${placed ? '빼기' : '놓기'}</small></button>`;
-  }).join('');
-  return `<section class="panel gift-panel"><div class="gift-head"><strong>🎁 레벨 선물</strong><small>레벨이 오를 때마다 새 선물이 와요</small></div><div class="gift-row">${cards}</div></section>`;
+
+// 방 안에서 아이템 끌기 · 모서리로 크기 조절
+function refreshObjectBar() { const bar = document.querySelector('#obj-bar'); if (bar) bar.outerHTML = objectBar(); }
+function selectObject(id) {
+  state.selectedObj = id;
+  document.querySelectorAll('.room-obj').forEach(el => el.classList.toggle('selected', el.dataset.oid === id));
+  refreshObjectBar();
 }
+async function saveObject(obj) {
+  try { const { error } = await sb.rpc('update_object', { p_id: obj.id, p_x: obj.x, p_y: obj.y, p_scale: obj.scale, p_flip: obj.flip }); if (error) throw error; }
+  catch (error) { alert(error.message || '저장하지 못했어요. 다시 시도해 주세요.'); await loadRoom().catch(() => {}); render(); }
+}
+document.addEventListener('pointerdown', e => {
+  const stage = e.target.closest('#room-stage');
+  if (!stage) return;
+  const el = e.target.closest('.room-obj');
+  if (!el) { if (state.selectedObj) selectObject(null); return; }
+  const obj = data.room.objects.find(o => o.id === el.dataset.oid);
+  if (!obj) return;
+  e.preventDefault();
+  selectObject(obj.id);
+  const rect = stage.getBoundingClientRect();
+  const handle = e.target.closest('[data-handle]');
+  const cx = rect.left + rect.width * obj.x / 100, cy = rect.top + rect.height * obj.y / 100;
+  roomDrag = { obj, el, rect, mode: handle ? 'scale' : 'move', startX: e.clientX, startY: e.clientY, x0: obj.x, y0: obj.y, scale0: obj.scale, dist0: Math.max(10, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy, moved: false, id: e.pointerId };
+  try { el.setPointerCapture(e.pointerId); } catch {}
+});
+document.addEventListener('pointermove', e => {
+  const d = roomDrag;
+  if (!d || e.pointerId !== d.id) return;
+  const item = roomItemById(d.obj.item_id);
+  if (d.mode === 'move') {
+    const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
+    if (!d.moved && Math.hypot(dx, dy) < 3) return;
+    d.moved = true;
+    d.obj.x = clampNum(d.x0 + dx / d.rect.width * 100, 0, 100);
+    d.obj.y = clampNum(d.y0 + dy / d.rect.height * 100, 0, 100);
+    d.el.style.left = d.obj.x + '%'; d.el.style.top = d.obj.y + '%';
+  } else {
+    d.moved = true;
+    d.obj.scale = clampNum(d.scale0 * Math.hypot(e.clientX - d.cx, e.clientY - d.cy) / d.dist0, 0.4, 2.5);
+    d.el.style.width = item.base_w * d.obj.scale + '%';
+  }
+});
+async function endDrag(e) {
+  const d = roomDrag;
+  if (!d || e.pointerId !== d.id) return;
+  roomDrag = null;
+  if (d.moved) await saveObject(d.obj);
+}
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
+
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
   const action = el?.dataset.action;
-  if (!['pick-slot', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode'].includes(action)) return;
-  if (action === 'pick-slot') { const slot = el.dataset.slot; state.roomTab = ROOM_TABS.find(row => row[2].includes(slot))[0]; state.roomSlot = state.roomTab === 'furniture' ? slot : null; render(); return; }
-  if (action === 'room-tab') { state.roomTab = el.dataset.tab; state.roomSlot = null; render(); return; }
-  if (action === 'room-filter') { state.roomSlot = el.dataset.slot || null; render(); return; }
+  if (!['room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
+  if (action === 'room-tab') { state.roomTab = el.dataset.tab; state.roomCat = null; render(); return; }
+  if (action === 'room-filter') { state.roomCat = el.dataset.cat || null; render(); return; }
   if (action === 'room-mode') {
     state.roomMode = el.dataset.mode;
     if (state.roomMode === 'friends' && sb) { state.friends = null; render(); await loadFriends(); }
@@ -598,20 +672,37 @@ document.addEventListener('click', async e => {
   if (roomBusy || !sb) return;
   roomBusy = true;
   try {
-    if (action === 'buy-item') {
-      const id = el.dataset.itemId;
-      const { error } = await sb.rpc('buy_item', { p_item_id: id });
-      if (error) throw error;
-      const placed = await sb.rpc('place_item', { p_item_id: id });
-      if (placed.error) throw placed.error;
+    const obj = data.room.objects.find(o => o.id === state.selectedObj);
+    if (action === 'flip-obj' && obj) {
+      obj.flip = !obj.flip;
+      const img = document.querySelector(`.room-obj[data-oid="${obj.id}"] img`);
+      if (img) img.style.transform = `scaleX(${obj.flip ? -1 : 1})`;
+      await saveObject(obj);
+    } else if (action === 'front-obj' && obj) {
+      const { error } = await sb.rpc('front_object', { p_id: obj.id }); if (error) throw error;
+      await loadRoom();
+    } else if (action === 'remove-obj' && obj) {
+      const { error } = await sb.rpc('remove_object', { p_id: obj.id }); if (error) throw error;
+      state.selectedObj = null; await loadRoom();
+    } else if (action === 'buy-item' || action === 'add-object') {
+      const id = el.dataset.itemId, item = roomItemById(id);
+      if (action === 'buy-item') { const { error } = await sb.rpc('buy_item', { p_item_id: id }); if (error) throw error; }
+      if (item.slot === 'object') {
+        const wall = item.category === 'wall';
+        const x = 50 + (Math.random() - .5) * 30, y = wall ? 22 + Math.random() * 10 : 68 + Math.random() * 10;
+        const { data: newId, error } = await sb.rpc('add_object', { p_item_id: id, p_x: x, p_y: y }); if (error) throw error;
+        await loadRoom(); state.selectedObj = newId;
+      } else {
+        const { error } = await sb.rpc('place_item', { p_item_id: id }); if (error) throw error;
+        await loadRoom();
+      }
     } else if (action === 'place-item') {
-      const { error } = await sb.rpc('place_item', { p_item_id: el.dataset.itemId });
-      if (error) throw error;
-    } else {
-      const { error } = await sb.rpc('clear_slot', { p_slot: el.dataset.slot });
-      if (error) throw error;
+      const { error } = await sb.rpc('place_item', { p_item_id: el.dataset.itemId }); if (error) throw error;
+      await loadRoom();
+    } else if (action === 'clear-slot') {
+      const { error } = await sb.rpc('clear_slot', { p_slot: el.dataset.slot }); if (error) throw error;
+      await loadRoom();
     }
-    await loadRoom();
   } catch (error) { alert(error.message || '처리하지 못했어요. 잠시 후 다시 시도해 주세요.'); await loadRoom().catch(() => {}); }
   roomBusy = false;
   render();

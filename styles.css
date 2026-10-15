@@ -511,20 +511,6 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .room-wall { top: 0; height: 58%; background: var(--wall); }
 .room-floor { bottom: 0; height: 42%; background: var(--floor); border-top: 6px solid rgba(0, 0, 0, .08); }
 .room-wall.selected, .room-floor.selected { box-shadow: inset 0 0 0 4px rgba(47, 124, 246, .55); }
-.room-slot:not(.filled) { border-color: rgba(24, 55, 91, .18); }
-.room-slot { position: absolute; display: grid; place-items: center; width: 17%; aspect-ratio: 1; border: 2px dashed rgba(24, 55, 91, .28); border-radius: 16px; background: transparent; font-size: 11cqw; line-height: 1; padding: 0; color: var(--ink); cursor: pointer; }
-.room-slot.filled { border-color: transparent; }
-.room-slot small { font-size: 1.5cqw; font-weight: 800; color: rgba(24, 55, 91, .6); line-height: 1.2; text-align: center; padding: 0 2px; }
-.room-slot.selected { border: 3px solid var(--blue); background: rgba(255, 255, 255, .45); }
-.slot-window { left: 6%; top: 8%; }
-.slot-wall_deco { left: 30%; top: 6%; width: 13%; font-size: 8cqw; }
-.slot-lamp { left: 48%; top: 6%; width: 13%; font-size: 8cqw; }
-.slot-shelf { left: 66%; top: 10%; width: 22%; font-size: 14cqw; }
-.slot-bed { left: 4%; top: 44%; width: 26%; font-size: 17cqw; }
-.slot-desk { left: 35%; top: 48%; width: 18%; font-size: 11cqw; }
-.slot-rug { left: 36%; top: 80%; width: 20%; aspect-ratio: 2 / 1; font-size: 8cqw; }
-.slot-plant { left: 79%; top: 56%; width: 15%; font-size: 10cqw; }
-.slot-pet { left: 60%; top: 68%; width: 15%; font-size: 9cqw; }
 .shop-panel { padding: 18px; }
 .slot-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 14px; }
 .slot-tab { flex: none; border: 1px solid var(--line); background: #f5fbff; color: var(--muted); border-radius: 999px; padding: 8px 14px; font-weight: 800; }
@@ -536,7 +522,7 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .shop-item button:disabled { opacity: .6; cursor: not-allowed; }
 .shop-icon { font-size: 40px; line-height: 1; height: 48px; display: grid; place-items: center; }
 .room-swatch { display: block; width: 46px; height: 46px; border-radius: 12px; border: 2px solid rgba(0, 0, 0, .1); }
-@media (max-width: 520px) { .room { aspect-ratio: 4 / 3; } .room-slot small { font-size: 2.6cqw; } .sticker-wallet { margin-top: 8px; display: inline-block; } }
+@media (max-width: 520px) { .room { aspect-ratio: 4 / 3; } .sticker-wallet { margin-top: 8px; display: inline-block; } }
 
 /* 친구 방 구경 · 레벨 선물 */
 .room-modes { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -544,7 +530,6 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .friend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .friend-room strong { display: block; margin: 0 0 8px 6px; }
 .room-mini { max-width: none; margin: 0; aspect-ratio: 16 / 10; pointer-events: none; }
-.room-mini .room-slot { cursor: default; border-color: transparent; }
 .level-gift { background: var(--yellow); border-radius: 14px; padding: 10px 14px; font-weight: 800; }
 
 /* 내 방: 세트 · 필터 · 레벨 선물 */
@@ -569,3 +554,25 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .gift-icon { font-size: 30px; line-height: 1; height: 36px; display: grid; place-items: center; }
 .gift-icon .room-swatch { width: 34px; height: 34px; }
 .slot-tabs .slot-tab { flex: 1 0 auto; padding: 8px 10px; font-size: 13px; white-space: nowrap; }
+
+/* 내 방: 자유 배치 */
+.room-wall, .room-floor { pointer-events: none; }
+.room-obj { position: absolute; transform: translate(-50%, -50%); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.room-obj img { display: block; width: 100%; height: auto; pointer-events: none; -webkit-user-drag: none; filter: drop-shadow(0 3px 4px rgba(60, 40, 20, .18)); }
+.room-obj.readonly { pointer-events: none; }
+.room-obj.selected { outline: 2px dashed var(--orange); outline-offset: 3px; cursor: grabbing; }
+.obj-handle { display: none; position: absolute; width: 22px; height: 22px; background: #fff; border: 3px solid var(--orange); border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+.obj-handle::after { content: ""; position: absolute; inset: -12px; }
+.room-obj.selected .obj-handle { display: block; }
+.h-nw { left: -13px; top: -13px; cursor: nwse-resize; } .h-ne { right: -13px; top: -13px; cursor: nesw-resize; }
+.h-sw { left: -13px; bottom: -13px; cursor: nesw-resize; } .h-se { right: -13px; bottom: -13px; cursor: nwse-resize; }
+.room-empty-hint { position: absolute; left: 0; right: 0; bottom: 14%; margin: 0; text-align: center; font-weight: 800; font-size: clamp(12px, 2.6cqw, 18px); color: rgba(24, 55, 91, .5); pointer-events: none; }
+.obj-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 720px; margin: -8px auto 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 16px; font-size: 13px; }
+.obj-bar.active { border-color: var(--orange); background: #fff9f0; }
+.obj-bar .secondary-button { padding: 8px 12px; font-size: 13px; }
+.obj-bar .danger { color: #c2410c; }
+.obj-hint { color: var(--muted); font-weight: 700; }
+.obj-count { margin-left: auto; color: var(--muted); font-weight: 700; }
+.shop-icon { height: 64px; }
+.shop-icon img { max-width: 86%; max-height: 62px; object-fit: contain; }
+.gift-icon img { max-height: 36px; max-width: 100%; object-fit: contain; }
