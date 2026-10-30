@@ -605,3 +605,19 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .panel .book-search-input { display: flex; gap: 8px; margin-top: 12px; }
 .panel .book-search-input input { flex: 1; min-width: 0; padding: 12px 14px; border: 2px solid var(--line); border-radius: 14px; background: #f5fbff; color: var(--ink); font: inherit; }
 @media (max-width: 520px) { .panel .book-search-input { flex-direction: column; } }
+
+/* 책장 페이지 넘기기 */
+.shelf-pages { display: grid; gap: 30px; }
+.shelf-pages.from-right { animation: shelf-in-right .28s ease; }
+.shelf-pages.from-left { animation: shelf-in-left .28s ease; }
+@keyframes shelf-in-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes shelf-in-left { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .shelf-pages.from-right, .shelf-pages.from-left { animation: none; } }
+.shelf-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 30px; }
+.shelf-pager .ghost-button { width: 44px; height: 44px; padding: 0; border-radius: 50%; font-size: 1.5rem; line-height: 1; }
+.shelf-pager .ghost-button:disabled { opacity: .35; cursor: default; }
+.shelf-dots { display: inline-flex; align-items: center; gap: 6px; }
+.shelf-dots i { width: 8px; height: 8px; border-radius: 50%; background: #e3cfae; }
+.shelf-dots i.on { background: #b8814a; }
+.shelf-dots b { margin-left: 8px; color: var(--muted); font-size: .85rem; }
+.wish-more { margin: 12px auto 0; display: block; }

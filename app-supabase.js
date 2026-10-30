@@ -714,8 +714,10 @@ document.addEventListener('click', async e => {
 });
 
 // 내 책장: 읽은 책 표지 책장 + 읽고 싶은 책 담기
-Object.assign(state, { shelfQuery: '', shelfResults: [], shelfSearching: false, shelfNote: '' });
+Object.assign(state, { shelfQuery: '', shelfResults: [], shelfSearching: false, shelfNote: '', shelfPage: 0, shelfDir: '', wishExpanded: false });
 const SHELF_PER_ROW = 5;
+const SHELF_ROWS_PER_PAGE = 2;
+const WISH_PREVIEW = 5;
 const WISHLIST_MAX = 50;
 data.wishlist = []; data.wishlistReady = false;
 async function loadWishlist() {
@@ -741,15 +743,23 @@ function wishPanel() {
     : state.shelfResults.length ? `<div class="book-search-results">${state.shelfResults.map((book, index) => `<div class="book-result wish-result">${book.image ? `<img src="${esc(book.image)}" alt="" />` : '<span class="book-result-placeholder">📚</span>'}<span><strong>${esc(book.title)}</strong><small>${esc(book.author || '저자 정보 없음')}${read.has(normalizeTitle(book.title)) ? ' · ✅ 이미 읽은 책' : ''}</small></span>${data.wishlist.some(item => normalizeTitle(item.title) === normalizeTitle(book.title)) ? '<span class="wish-added">✓ 담음</span>' : `<button type="button" class="secondary-button wish-add" data-action="wish-add" data-result-index="${index}">♡ 담기</button>`}</div>`).join('')}</div>`
     : '';
   const note = state.shelfNote ? `<div class="book-search-note">${esc(state.shelfNote)}</div>` : '';
-  const list = data.wishlist.length ? data.wishlist.map(item => `<div class="wish-item">${bookVisual(item)}<div class="wish-copy"><strong>${esc(item.title)}</strong><small>${esc(item.author || '저자 정보 없음')}</small></div><div class="wish-actions"><button type="button" class="primary-button" data-action="wish-record" data-wish-id="${esc(item.id)}">📖 읽었어요!</button><button type="button" class="ghost-button" data-action="wish-remove" data-wish-id="${esc(item.id)}" aria-label="${esc(item.title)} 빼기">빼기</button></div></div>`).join('') : '<div class="empty">아직 담은 책이 없어요. 위에서 읽고 싶은 책을 찾아 담아 보세요!</div>';
-  return `<section class="panel"><p class="eyebrow">WISH LIST</p><h2>읽고 싶은 책 (${data.wishlist.length}권)</h2><p class="subtitle">읽고 싶은 책을 담아 두었다가, 다 읽으면 바로 기록해 보세요.</p><div class="book-search-input"><input id="shelf-query" value="${esc(state.shelfQuery)}" placeholder="책 제목으로 찾기" autocomplete="off" /><button class="secondary-button" type="button" data-action="shelf-search">🔎 책 검색</button></div>${results}${note}<div class="wish-list">${list}</div></section>`;
+  const shownWish = state.wishExpanded ? data.wishlist : data.wishlist.slice(0, WISH_PREVIEW);
+  const moreWish = data.wishlist.length > WISH_PREVIEW ? `<button type="button" class="ghost-button wish-more" data-action="wish-toggle">${state.wishExpanded ? '접기 ▲' : `전체 보기 (${data.wishlist.length}권) ▼`}</button>` : '';
+  const list = data.wishlist.length ? shownWish.map(item => `<div class="wish-item">${bookVisual(item)}<div class="wish-copy"><strong>${esc(item.title)}</strong><small>${esc(item.author || '저자 정보 없음')}</small></div><div class="wish-actions"><button type="button" class="primary-button" data-action="wish-record" data-wish-id="${esc(item.id)}">📖 읽었어요!</button><button type="button" class="ghost-button" data-action="wish-remove" data-wish-id="${esc(item.id)}" aria-label="${esc(item.title)} 빼기">빼기</button></div></div>`).join('') : '<div class="empty">아직 담은 책이 없어요. 위에서 읽고 싶은 책을 찾아 담아 보세요!</div>';
+  return `<section class="panel"><p class="eyebrow">WISH LIST</p><h2>읽고 싶은 책 (${data.wishlist.length}권)</h2><p class="subtitle">읽고 싶은 책을 담아 두었다가, 다 읽으면 바로 기록해 보세요.</p><div class="book-search-input"><input id="shelf-query" value="${esc(state.shelfQuery)}" placeholder="책 제목으로 찾기" autocomplete="off" /><button class="secondary-button" type="button" data-action="shelf-search">🔎 책 검색</button></div>${results}${note}<div class="wish-list">${list}</div>${moreWish}</section>`;
 }
 function shelf() {
   const books = data.records;
+  const perPage = SHELF_PER_ROW * SHELF_ROWS_PER_PAGE;
+  const pages = Math.max(1, Math.ceil(books.length / perPage));
+  state.shelfPage = Math.min(Math.max(0, state.shelfPage), pages - 1);
+  const pageBooks = books.slice(state.shelfPage * perPage, (state.shelfPage + 1) * perPage);
   const rows = [];
-  for (let i = 0; i < books.length; i += SHELF_PER_ROW) rows.push(books.slice(i, i + SHELF_PER_ROW));
+  for (let i = 0; i < pageBooks.length; i += SHELF_PER_ROW) rows.push(pageBooks.slice(i, i + SHELF_PER_ROW));
   const shelves = rows.length ? rows.map(row => `<div class="shelf-row">${row.map(shelfBook).join('')}</div>`).join('') : '<div class="empty">아직 책장이 비어 있어요.<br>책을 기록하면 표지가 책장에 꽂혀요!</div>';
-  return layout(`<section class="page-title"><div><p class="eyebrow">MY BOOKSHELF</p><h1>내 책장</h1><p class="subtitle">내가 읽은 책 ${books.length}권이 책장에 꽂혀 있어요. 책을 누르면 내 기록을 볼 수 있어요.</p></div></section><section class="panel bookshelf">${shelves}</section>${wishPanel()}${recordModal()}`, 'shelf');
+  const pager = pages > 1 ? `<div class="shelf-pager"><button type="button" class="ghost-button" data-action="shelf-prev" aria-label="이전 책장" ${state.shelfPage === 0 ? 'disabled' : ''}>‹</button><span class="shelf-dots" role="status" aria-label="${state.shelfPage + 1}쪽 / 전체 ${pages}쪽">${Array.from({ length: pages }, (_, i) => `<i class="${i === state.shelfPage ? 'on' : ''}"></i>`).join('')}<b>${state.shelfPage + 1} / ${pages}</b></span><button type="button" class="ghost-button" data-action="shelf-next" aria-label="다음 책장" ${state.shelfPage >= pages - 1 ? 'disabled' : ''}>›</button></div>` : '';
+  const dir = state.shelfDir; state.shelfDir = '';
+  return layout(`<section class="page-title"><div><p class="eyebrow">MY BOOKSHELF</p><h1>내 책장</h1><p class="subtitle">내가 읽은 책 ${books.length}권이 책장에 꽂혀 있어요. 책을 누르면 내 기록을 볼 수 있어요.${pages > 1 ? '<br>옆으로 밀거나 화살표를 눌러 다음 책장을 볼 수 있어요.' : ''}</p></div></section><section class="panel bookshelf"><div class="shelf-pages ${dir}">${shelves}</div>${pager}</section>${wishPanel()}${recordModal()}`, 'shelf');
 }
 async function searchShelfBooks() {
   const query = document.querySelector('#shelf-query')?.value.trim() ?? state.shelfQuery;
@@ -779,6 +789,8 @@ document.addEventListener('click', async e => {
   if (!button) return;
   const action = button.dataset.action;
   if (action === 'shelf-search') searchShelfBooks();
+  if (action === 'shelf-prev' || action === 'shelf-next') turnShelfPage(action === 'shelf-next' ? 1 : -1);
+  if (action === 'wish-toggle') { state.wishExpanded = !state.wishExpanded; const y = window.scrollY; render(); window.scrollTo(0, y); }
   if (action === 'wish-add') {
     const book = state.shelfResults[Number(button.dataset.resultIndex)];
     if (!book) return;
@@ -802,3 +814,25 @@ document.addEventListener('click', async e => {
 });
 document.addEventListener('keydown', e => { if (e.target.id === 'shelf-query' && e.key === 'Enter') { e.preventDefault(); searchShelfBooks(); } });
 document.addEventListener('input', e => { if (e.target.id === 'shelf-query') state.shelfQuery = e.target.value; });
+
+function turnShelfPage(step) {
+  const pages = Math.max(1, Math.ceil(data.records.length / (SHELF_PER_ROW * SHELF_ROWS_PER_PAGE)));
+  const next = Math.min(Math.max(0, state.shelfPage + step), pages - 1);
+  if (next === state.shelfPage) return;
+  state.shelfPage = next; state.shelfDir = step > 0 ? 'from-right' : 'from-left';
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+}
+// 책장을 손가락으로 옆으로 밀어 넘기기
+let shelfTouch = null;
+document.addEventListener('touchstart', e => { shelfTouch = e.target.closest('.bookshelf') && !state.selectedRecord ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!shelfTouch) return;
+  const dx = e.changedTouches[0].clientX - shelfTouch.x, dy = e.changedTouches[0].clientY - shelfTouch.y;
+  shelfTouch = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) turnShelfPage(dx < 0 ? 1 : -1);
+});
+document.addEventListener('keydown', e => {
+  if (state.view !== 'shelf' || state.selectedRecord || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (e.key === 'ArrowRight') turnShelfPage(1);
+  if (e.key === 'ArrowLeft') turnShelfPage(-1);
+});
