@@ -20,6 +20,26 @@ function loginEmail(classCode: string, nickname: string) {
   return `student2-${encoded}@bookstep.local`;
 }
 
+
+// 가입 시도 제한: 실패한 시도만 세어 기록합니다. 기록 장치에 문제가 생겨도 가입을 막지 않습니다.
+function clientIp(request: Request) {
+  return (request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim();
+}
+async function failureCount(admin: ReturnType<typeof createClient>, kind: string, key: string, minutes: number) {
+  try {
+    const since = new Date(Date.now() - minutes * 60_000).toISOString();
+    const { count } = await admin.from('auth_attempts').select('id', { count: 'exact', head: true })
+      .eq('kind', kind).eq('key', key).gte('created_at', since);
+    return count ?? 0;
+  } catch { return 0; }
+}
+async function recordFailure(admin: ReturnType<typeof createClient>, kind: string, key: string) {
+  try {
+    await admin.from('auth_attempts').insert({ kind, key });
+    if (Math.random() < 0.02) await admin.from('auth_attempts').delete().lt('created_at', new Date(Date.now() - 86_400_000).toISOString());
+  } catch { /* 무시 */ }
+}
+
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return response({ error: 'POST 요청만 가능합니다.' }, 405);
@@ -41,10 +61,17 @@ Deno.serve(async request => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // 학급코드를 계속 틀리면 잠시 막습니다. (한 학교 공유기에서 여러 학생이 오타를 내도 괜찮도록 넉넉하게)
+    const ip = clientIp(request);
+    if (await failureCount(admin, 'student-signup', ip, 15) >= 40) {
+      return response({ error: '시도가 너무 많아요. 15분 뒤에 다시 해 주세요.' }, 429);
+    }
+
     // 학급코드가 선택한 학교·학년·반과 일치하는지 확인합니다.
     const { data: cls } = await admin.from('classes').select('id, school_code, grade, class_no, school_year')
       .eq('join_code', classCode.trim().toUpperCase()).maybeSingle();
     if (!cls || cls.school_code !== school.code || cls.grade !== Number(grade) || cls.class_no !== Number(classNo)) {
+      await recordFailure(admin, 'student-signup', ip);
       return response({ error: '학급코드가 선택한 학교·학년·반과 맞지 않아요. 선생님께 다시 확인해 주세요.' }, 403);
     }
     const { data, error } = await admin.auth.admin.createUser({

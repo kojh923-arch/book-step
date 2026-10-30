@@ -107,7 +107,7 @@ function loginScreen() {
     <p class="subtitle">학생의 독서 기록과 미션 답변을 한곳에서 확인할 수 있어요.</p>
     <div class="auth-toggle"><button class="${mode === 'login' ? 'active' : ''}" data-mode="login">로그인</button><button class="${mode === 'signup' ? 'active' : ''}" data-mode="signup">첫 교사 계정 만들기</button></div>
     <form id="teacher-auth-form"><div class="field"><label for="teacher-nickname">교사 닉네임</label><input id="teacher-nickname" required minlength="2" maxlength="16" value="${escapeHtml(draft.nickname)}" placeholder="예: 6학년 1반 선생님" /></div>
-    <div class="field"><label for="teacher-password">비밀번호</label><input id="teacher-password" type="password" required minlength="6" value="${escapeHtml(draft.password)}" placeholder="6자 이상 입력" /></div>
+    <div class="field"><label for="teacher-password">비밀번호</label><input id="teacher-password" type="password" required minlength="${mode === 'signup' ? 8 : 6}" value="${escapeHtml(draft.password)}" placeholder="${mode === 'signup' ? '8자 이상 입력 (교사 계정은 더 길게)' : '비밀번호'}" /></div>
     ${mode === 'signup' ? `<div class="field"><label>근무 학교</label>${schoolPicker()}</div><div class="field"><label for="teacher-code">선생님 인증코드</label><input id="teacher-code" required value="${escapeHtml(draft.code)}" placeholder="학교에서 안내받은 인증코드" autocomplete="off" /></div>` : ''}
     <div class="error">${escapeHtml(message)}</div><button class="primary-button" style="width:100%" type="submit">${mode === 'signup' ? '교사 계정 만들기' : '대시보드 열기'}</button></form>
     <p class="notice">인증코드는 최초 계정 생성 때만 필요해요. 학교를 선택하면 학급을 만들 때 자동으로 선택돼요.</p></div></div>`;
