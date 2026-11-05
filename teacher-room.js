@@ -2,6 +2,7 @@
 // 우리 반 학생들은 '친구 방 구경'에서 선생님 방을 보고 따라 할 수 있어요. (supabase-room.sql)
 // teacher-dashboard.js보다 먼저 불러오며, escapeHtml·sb·render·keepScroll은 그쪽에서 가져다 써요.
 const TROOM_MAX = 60;
+const TROOM_ZOOM = 1.4; // 방을 1.4배 넓게: 아이템 폭(%)을 같은 비율로 줄여 크기(px)는 그대로 (app-supabase.js의 TEACHER_ROOM_ZOOM과 같은 값)
 const TROOM_TABS = [['furniture', '🛋️ 가구·소품'], ['wallpaper', '🎨 벽지'], ['floor', '🟫 바닥']];
 const TROOM_CATS = [['furniture', '가구'], ['seat', '의자·쿠션'], ['lamp', '조명'], ['wall', '벽 장식'], ['decor', '인테리어'], ['tech', '전자기기'], ['stationery', '문구·소품']];
 const troom = { ready: false, items: [], placed: {}, objects: [], tab: 'furniture', cat: null, selected: null, busy: false, drag: null };
@@ -32,7 +33,7 @@ function troomObjHtml(obj) {
   const item = troomItem(obj.item_id);
   if (!item?.img) return '';
   const handles = ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
-  return `<div class="room-obj${troom.selected === obj.id ? ' selected' : ''}" data-oid="${escapeHtml(obj.id)}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale}%;z-index:${10 + Number(obj.z || 0)}"><img src="${escapeHtml(item.img)}" alt="${escapeHtml(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
+  return `<div class="room-obj${troom.selected === obj.id ? ' selected' : ''}" data-oid="${escapeHtml(obj.id)}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / TROOM_ZOOM}%;z-index:${10 + Number(obj.z || 0)}"><img src="${escapeHtml(item.img)}" alt="${escapeHtml(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
 }
 function troomScene() {
   const wall = troomCurrent('wallpaper'), floor = troomCurrent('floor');
@@ -104,7 +105,7 @@ document.addEventListener('pointermove', event => {
   } else {
     d.moved = true;
     d.obj.scale = troomClamp(d.scale0 * Math.hypot(event.clientX - d.cx, event.clientY - d.cy) / d.dist0, 0.4, 2.5);
-    d.el.style.width = troomItem(d.obj.item_id).base_w * d.obj.scale + '%';
+    d.el.style.width = troomItem(d.obj.item_id).base_w * d.obj.scale / TROOM_ZOOM + '%';
   }
 });
 async function troomEndDrag(event) {

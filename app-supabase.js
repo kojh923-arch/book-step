@@ -536,17 +536,18 @@ const roomSetFor = lv => ROOM_SETS.reduce((found, set) => lv >= set[0] ? set : f
 const placedCount = item => data.room.objects.filter(o => o.item_id === item.id).length;
 const clampNum = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-function objectHtml(obj, readonly) {
+const TEACHER_ROOM_ZOOM = 1.4; // 선생님 방은 1.4배 넓은 방 (아이템 크기는 그대로)
+function objectHtml(obj, readonly, zoom = 1) {
   const item = roomItemById(obj.item_id);
   if (!item?.img) return '';
   const selected = !readonly && state.selectedObj === obj.id;
   const handles = readonly ? '' : ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
-  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale}%;z-index:${10 + Number(obj.z || 0)}"><img src="${esc(item.img)}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
+  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / zoom}%;z-index:${10 + Number(obj.z || 0)}"><img src="${esc(item.img)}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
 }
-function roomScene(placedMap = data.room.placed, objects = data.room.objects, readonly = false) {
+function roomScene(placedMap = data.room.placed, objects = data.room.objects, readonly = false, zoom = 1) {
   const wall = roomPlaced('wallpaper', placedMap), floor = roomPlaced('floor', placedMap);
   const style = `--wall:${esc(wall?.color || '#fff4dc')};--floor:${esc(floor?.color || '#e8c9a0')}`;
-  const objs = [...objects].sort((a, b) => a.z - b.z).map(obj => objectHtml(obj, readonly)).join('');
+  const objs = [...objects].sort((a, b) => a.z - b.z).map(obj => objectHtml(obj, readonly, zoom)).join('');
   const hint = !readonly && !objects.length ? '<p class="room-empty-hint">아래에서 아이템을 눌러 방에 놓아 보세요!</p>' : '';
   return `<div class="room${readonly ? ' room-mini' : ''}" ${readonly ? '' : 'id="room-stage"'} style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${objs}${hint}</div>`;
 }
@@ -591,7 +592,7 @@ function friendsPanel() {
   if (state.friends.error) return '<section class="panel"><div class="empty">친구 방을 불러오지 못했어요. (supabase-room.sql을 다시 실행해야 해요)</div></section>';
   if (!state.friends.rows.length) return '<section class="panel"><div class="empty">같은 반 친구가 아직 없어요. 친구가 가입하면 여기에서 방을 구경할 수 있어요.</div></section>';
   return `<section class="friend-grid">${state.friends.rows.map(row => row.is_teacher
-    ? `<article class="friend-room teacher-room"><strong>👩‍🏫 ${esc(/선생님$/.test(row.nickname) ? row.nickname : row.nickname + ' 선생님')}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true)}<small class="teacher-room-note">선생님 방을 보고 우리도 스티커를 모아 꾸며 봐요!</small></article>`
+    ? `<article class="friend-room teacher-room"><strong>👩‍🏫 ${esc(/선생님$/.test(row.nickname) ? row.nickname : row.nickname + ' 선생님')}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, TEACHER_ROOM_ZOOM)}<small class="teacher-room-note">선생님 방을 보고 우리도 스티커를 모아 꾸며 봐요!</small></article>`
     : `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true)}</article>`).join('')}</section>`;
 }
 function roomView() {
