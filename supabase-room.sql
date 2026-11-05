@@ -350,6 +350,7 @@ as $$
          or (p.role = 'teacher' and exists (select 1 from public.classes c where c.id = me.class_id and c.teacher_id = p.id)))
   order by (p.role = 'teacher') desc, p.nickname;
 $$;
+revoke execute on function public.classmate_rooms() from public, anon;
 grant execute on function public.classmate_rooms() to authenticated;
 
 notify pgrst, 'reload schema';
