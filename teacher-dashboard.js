@@ -99,6 +99,7 @@ async function loadDashboard() {
   records = recordRows || [];
   const { data: feedbackRows } = await sb.from('teacher_feedback').select('record_id,stamp,comment');
   feedback = Object.fromEntries((feedbackRows || []).map(row => [row.record_id, row]));
+  await loadTeacherRoom().catch(() => {});
 }
 
 function loginScreen() {
@@ -135,7 +136,7 @@ function dashboardScreen() {
   const rows = studentRows();
   return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${teacherTitle()}</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
   <section class="page-title"><div><p class="eyebrow">CLASS READING DASHBOARD</p><h1>우리 반 독서 현황</h1><p class="subtitle">학생별 독서 기록과 미션 답변을 한눈에 확인해요.</p>${classChips()}</div><button class="secondary-button" data-action="refresh">새로고침</button></section>
-  ${selectedStudentId ? '' : flashBanner()}${collapsible('classes', classPanel(), !classes.length)}${collapsible('bulk', bulkPanel())}${collapsible('challenge', challengePanel())}
+  ${selectedStudentId ? '' : flashBanner()}${collapsible('classes', classPanel(), !classes.length)}${collapsible('bulk', bulkPanel())}${collapsible('challenge', challengePanel())}${collapsible('room', teacherRoomPanel())}
   <section class="stats"><div class="stat"><div class="stat-label">등록 학생</div><div class="stat-value">${students.length}명</div><div class="stat-note">현재 학생 계정 기준</div></div><div class="stat"><div class="stat-label">이번 달 독서</div><div class="stat-value">${thisMonth}권</div><div class="stat-note">${monthKey.replace('-', '년 ')}월 기록</div></div><div class="stat"><div class="stat-label">전체 미션 완료</div><div class="stat-value">${records.length}회</div><div class="stat-note">저장된 독서 기록 수</div></div><div class="stat"><div class="stat-label">기록한 학생</div><div class="stat-value">${completedStudents}명</div><div class="stat-note">한 권 이상 기록</div></div></section>
   <section class="teacher-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">STUDENT SUMMARY</p><h2>학생별 성장 현황</h2></div></div>${manageBar()}<div class="table-wrap"><table class="teacher-table"><thead><tr><th class="check-col"><input type="checkbox" data-action="select-all" aria-label="전체 선택" ${rows.allSelected ? 'checked' : ''} /></th><th>학생</th><th>학급</th><th>읽은 책</th><th>현재 업적</th><th>최근 기록</th><th>칭찬 대기</th></tr></thead><tbody>${rows.html || '<tr><td colspan="7" class="empty">조건에 맞는 학생이 없어요.</td></tr>'}</tbody></table></div></section>
   <aside class="panel"><p class="eyebrow">RECENT RECORDS</p><h2>최근 미션 답변</h2><div class="teacher-records">${latest.length ? latest.map(record => `<details class="teacher-record"><summary><div><strong>${escapeHtml(record.student_nickname || '학생')}</strong><span class="record-meta">${escapeHtml(record.title)} · ${escapeHtml(record.read_date)}</span></div></summary><p><strong>${escapeHtml(record.mission)}</strong></p><p class="subtitle">${escapeHtml(record.answer)}</p></details>`).join('') : '<div class="empty">아직 제출된 기록이 없어요.</div>'}</div></aside></section>${studentRecordModal()}</div></div>`;

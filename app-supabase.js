@@ -590,7 +590,9 @@ function friendsPanel() {
   if (!state.friends || state.friends.loading) return '<section class="panel"><div class="empty">친구들의 방을 불러오는 중이에요…</div></section>';
   if (state.friends.error) return '<section class="panel"><div class="empty">친구 방을 불러오지 못했어요. (supabase-room.sql을 다시 실행해야 해요)</div></section>';
   if (!state.friends.rows.length) return '<section class="panel"><div class="empty">같은 반 친구가 아직 없어요. 친구가 가입하면 여기에서 방을 구경할 수 있어요.</div></section>';
-  return `<section class="friend-grid">${state.friends.rows.map(row => `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true)}</article>`).join('')}</section>`;
+  return `<section class="friend-grid">${state.friends.rows.map(row => row.is_teacher
+    ? `<article class="friend-room teacher-room"><strong>👩‍🏫 ${esc(/선생님$/.test(row.nickname) ? row.nickname : row.nickname + ' 선생님')}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true)}<small class="teacher-room-note">선생님 방을 보고 우리도 스티커를 모아 꾸며 봐요!</small></article>`
+    : `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true)}</article>`).join('')}</section>`;
 }
 function roomView() {
   const head = `<section class="page-title"><div><p class="eyebrow">MY ROOM</p><h1>내 방 꾸미기</h1><p class="subtitle">책을 읽고 받은 스티커로 방을 꾸며 보세요. 책 1권을 기록하면 스티커 1개를 받아요.</p></div><span class="sticker-wallet">⭐ 사용 가능 ${data.room?.ready ? stickersAvailable() : 0}개</span></section>`;
