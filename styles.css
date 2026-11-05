@@ -624,8 +624,8 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 
 /* 선생님 방 (학생 친구 방 구경) */
 .friend-room.teacher-room { grid-column: 1 / -1; padding: 14px; border: 2px solid var(--orange); border-radius: 24px; background: #fff9f0; }
-.friend-room.teacher-room .room-mini { max-width: 720px; margin: 0 auto; }
+.friend-room.teacher-room .room-mini { max-width: 1008px; margin: 0 auto; }
 .teacher-room-note { display: block; margin-top: 8px; text-align: center; color: var(--muted); font-weight: 800; }
 
 /* 선생님 방: 패널 폭을 꽉 채워서 넓게 (아이템은 방 크기에 비례해 같이 커져요) */
-.teacher-room-panel .room, .teacher-room-panel .obj-bar { max-width: none; }
+.teacher-room-panel .room, .teacher-room-panel .obj-bar { max-width: 1008px; } /* 720px × 1.4 */
