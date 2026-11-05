@@ -206,7 +206,7 @@ end;
 $$;
 grant execute on function public.buy_item(text) to authenticated;
 
--- 이 학생이 쓸 수 있는 아이템인지: 무료 / 레벨 선물을 받음 / 구매함
+-- 이 사람이 쓸 수 있는 아이템인지: 선생님 / 무료 / 레벨 선물을 받음 / 구매함
 create or replace function public.room_can_use(p_uid uuid, p_item public.room_items)
 returns boolean
 language plpgsql
@@ -216,6 +216,8 @@ set search_path = public
 as $$
 declare v_books int;
 begin
+  -- 선생님은 스티커·레벨과 상관없이 모든 아이템을 쓸 수 있어요. (학생들이 보고 따라 할 수 있도록)
+  if exists (select 1 from public.profiles where id = p_uid and role = 'teacher') then return true; end if;
   if p_item.reward_level is not null then
     select count(*)::int into v_books from public.reading_records where user_id = p_uid;
     return public.room_level(v_books) >= p_item.reward_level;
@@ -257,7 +259,7 @@ as $$
 $$;
 grant execute on function public.clear_slot(text) to authenticated;
 
--- 방에 아이템 놓기 (같은 아이템을 여러 개 놓을 수 있고, 한 방에 최대 30개)
+-- 방에 아이템 놓기 (같은 아이템을 여러 개 놓을 수 있고, 한 방에 최대 30개 / 선생님은 60개)
 create or replace function public.add_object(p_item_id text, p_x numeric, p_y numeric)
 returns uuid
 language plpgsql
@@ -268,6 +270,7 @@ declare
   v_uid uuid := auth.uid();
   v_item public.room_items;
   v_id uuid;
+  v_max int := case when public.is_teacher() then 60 else 30 end;
 begin
   if v_uid is null then raise exception '로그인이 필요해요.'; end if;
   select * into v_item from public.room_items where id = p_item_id;
@@ -275,8 +278,8 @@ begin
   if v_item.slot <> 'object' then raise exception '벽지와 바닥은 따로 바꿔요.'; end if;
   if not public.room_can_use(v_uid, v_item) then raise exception '아직 사용할 수 없는 아이템이에요.'; end if;
   perform pg_advisory_xact_lock(hashtext('roomobj:' || v_uid::text));
-  if (select count(*) from public.room_objects where user_id = v_uid) >= 30 then
-    raise exception '방에는 아이템을 30개까지 놓을 수 있어요.';
+  if (select count(*) from public.room_objects where user_id = v_uid) >= v_max then
+    raise exception '방에는 아이템을 %개까지 놓을 수 있어요.', v_max;
   end if;
   insert into public.room_objects (user_id, item_id, x, y, z)
   values (v_uid, p_item_id, least(greatest(p_x, 0), 100), least(greatest(p_y, 0), 100),
@@ -325,25 +328,27 @@ as $$
 $$;
 grant execute on function public.remove_object(uuid) to authenticated;
 
--- 같은 반 친구들의 방 구경: 닉네임과 배치된 아이템만 돌려줍니다. (다른 기록은 볼 수 없어요)
+-- 같은 반 친구들과 우리 반 선생님의 방 구경: 닉네임과 배치된 아이템만 돌려줍니다. (다른 기록은 볼 수 없어요)
+-- 선생님 방(is_teacher = true)이 맨 앞에 나와요.
 drop function if exists public.classmate_rooms();
 create or replace function public.classmate_rooms()
-returns table (nickname text, placed jsonb, objects jsonb)
+returns table (nickname text, is_teacher boolean, placed jsonb, objects jsonb)
 language sql
 stable
 security definer
 set search_path = public
 as $$
   select p.nickname,
+         (p.role = 'teacher'),
          coalesce((select jsonb_object_agg(ur.slot, ur.item_id) from public.user_room ur where ur.user_id = p.id), '{}'::jsonb),
          coalesce((select jsonb_agg(jsonb_build_object('item_id', o.item_id, 'x', o.x, 'y', o.y, 'scale', o.scale, 'flip', o.flip, 'z', o.z) order by o.z)
                    from public.room_objects o where o.user_id = p.id), '[]'::jsonb)
-  from public.profiles p
-  where p.role = 'student'
+  from public.profiles p, (select class_id from public.profiles where id = auth.uid()) me
+  where me.class_id is not null
     and p.id <> auth.uid()
-    and p.class_id is not null
-    and p.class_id = (select me.class_id from public.profiles me where me.id = auth.uid())
-  order by p.nickname;
+    and ((p.role = 'student' and p.class_id = me.class_id)
+         or (p.role = 'teacher' and exists (select 1 from public.classes c where c.id = me.class_id and c.teacher_id = p.id)))
+  order by (p.role = 'teacher') desc, p.nickname;
 $$;
 grant execute on function public.classmate_rooms() to authenticated;
 
