@@ -1,3 +1,4 @@
+// ===== 상수: 미션 질문 목록, 추천 도서 목록 =====
 const MISSIONS = [
   ['감정과 공감', '주인공의 기분은 어땠을까요?'],
   ['감정과 공감', '주인공에게 해주고 싶은 말은 무엇인가요?'],
@@ -54,12 +55,14 @@ const RECOMMENDATION_POOLS = {
     '보물섬', '파랑새', '소공녀', '몽실 언니', '우리들의 일그러진 영웅'
   ].map(title => [title, '', '고학년이 생각을 넓히고 깊이 읽어 볼 만한 추천 도서예요.'])
 };
+// ===== 앱 상태(state): 화면 전환·입력값 등 임시 상태 =====
 const state = { view: 'home', authMode: 'login', pendingBook: null, mission: null, rating: 0, selectedRecord: null, editingId: null, error: '', levelUp: null, bookQuery: '', bookAuthor: '', selectedBookInfo: null, bookDescriptionExpanded: false, bookResults: [], bookSearchError: '', bookSearching: false, recommendations: [], recommendationsLoaded: false, recommendationLoading: false, school: null, schoolQuery: '', schoolResults: [], schoolSearching: false, schoolSearched: false, schoolError: '', schoolSample: false, grade: '', classNo: '', draft: { nickname: '', password: '', classCode: '' } };
 
 try { state.draft.classCode = localStorage.getItem('bookstep-class-code') || ''; } catch {}
 const SCHOOL_SEARCH_FUNCTION = 'neis-school-search';
 const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
 const gradeCount = () => 6;
+// ===== 학교 검색 (회원가입) =====
 async function fetchSchools(query) {
   if (isLocalHost) {
     const res = await fetch(`/__neis?q=${encodeURIComponent(query)}`);
@@ -98,6 +101,7 @@ function schoolFields() {
   const classRow = s ? `<div class="field-row"><div class="field"><label for="grade">학년</label><select id="grade" required><option value="">선택</option>${grades}</select></div><div class="field"><label for="class-no">반</label><select id="class-no" required><option value="">선택</option>${classes}</select></div></div>` : '';
   return `<div class="field"><label>학교</label>${picker}</div>${classRow}`;
 }
+// ===== 데이터(data)와 Supabase 읽기·쓰기: 기록, 프로필, 책 검색, 가입 =====
 let data = { nickname: '', records: [], feedback: {}, challenges: [], ranking: [], bonus: 0 };
 
 const bookVisual = (record, className = 'record-book-icon') => record.cover_image ? `<span class="${className} record-book-cover"><img src="${esc(record.cover_image)}" alt="${esc(record.title)} 표지" /></span>` : `<span class="${className}">📕</span>`;
@@ -218,6 +222,7 @@ async function registerStudent(nickname, password, classCode, classInfo = {}) {
   if (!response.ok) throw new Error(result.error || '회원가입에 실패했어요.');
 }
 
+// ===== 화면 그리기: 홈, 로그인, 기록, 저장 내역, 성장 현황 (layout이 공통 틀) =====
 function layout(content, active = 'home') { return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${esc(data.nickname)}님의 독서 기록</small></div></div><div class="topbar-actions"><button class="ghost-button" data-action="logout">로그아웃</button></div></header><nav class="nav-tabs"><button class="${active === 'home' ? 'active' : ''}" data-view="home">홈</button><button class="${active === 'record' ? 'active' : ''}" data-view="record">독서 기록</button><button class="${active === 'history' ? 'active' : ''}" data-view="history">저장 내역</button><button class="${active === 'shelf' ? 'active' : ''}" data-view="shelf">내 책장</button><button class="${active === 'growth' ? 'active' : ''}" data-view="growth">성장 현황</button><button class="${active === 'room' ? 'active' : ''}" data-view="room">내 방</button></nav>${content}</div></div>`; }
 function homeRecommendations() {
   const cards = state.recommendationLoading || !state.recommendations.length
@@ -273,6 +278,7 @@ function levelGiftNote(item) {
 }
 function levelUp() { const gained = state.levelUp || level(); const next = LEVELS.find(item => item[0] > data.records.length); const confetti = Array.from({ length: 28 }, (_, index) => `<i class="confetti-piece piece-${index % 7}" style="--delay:${(index % 7) * 0.08}s;--x:${(index * 37) % 94}%"></i>`).join(''); return layout(`<section class="level-up-card"><div class="confetti" aria-hidden="true">${confetti}</div><div class="level-up-icon">${levelIcon(gained)}</div><p class="eyebrow">LEVEL UP!</p><h1>축하해요!</h1><h2>LV.${LEVELS.indexOf(gained)} ${esc(gained[1])} 달성</h2><p class="subtitle">책 ${data.records.length}권을 읽고 미션을 완성했어요.<br>나의 독서 실력이 한 단계 자랐습니다.</p>${levelGiftNote(gained)}<div class="level-up-progress"><span>${next ? `다음 레벨까지 ${next[0] - data.records.length}권` : '최고 레벨 달성!'}</span></div><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="growth">성장 현황 보기</button><button class="secondary-button" data-view="record">다음 책 기록하기</button></div></section>`, 'growth'); }
 function render() { document.querySelector('#app').innerHTML = data.nickname ? (state.view === 'home' ? home() : state.view === 'record' ? (state.mission ? missionView() : recordForm()) : state.view === 'history' ? history() : state.view === 'growth' ? growth() : state.view === 'success' ? success() : state.view === 'levelup' ? levelUp() : state.view === 'room' ? roomView() : state.view === 'shelf' ? shelf() : home()) : auth(); }
+// ===== 버튼·폼 이벤트 처리 (클릭, 제출, 입력) =====
 function startMission(form) {
   if (!form.reportValidity()) return;
   const dup = findDuplicateRecord(form.querySelector('#title').value);
@@ -388,6 +394,7 @@ document.addEventListener('change', e => {
 // 독서 달력 · 주 단위 연속 기록 · 선생님 칭찬
 function readingDays() { return new Set(data.records.map(r => String(r.read_date || r.date || '').slice(0, 10)).filter(Boolean)); }
 function weeklyStreak() { return weeklyStreakFor(readingDays()); }
+// ===== 홈/성장: 캘린더·연속 기록·선생님 도장·학급 챌린지 =====
 function calendarPanel() {
   const offset = state.calOffset || 0;
   const base = new Date();
@@ -473,6 +480,7 @@ state.selectedObj = null;
 let roomBusy = false;
 let roomDrag = null;
 
+// ===== 내 방: 방 꾸미기(아이템 구매·배치·드래그) 데이터 불러오기와 화면 =====
 async function loadRoom() {
   data.room = { ready: false, items: [], owned: [], placed: {}, objects: [] };
   if (!sb) return;
@@ -697,6 +705,7 @@ const SHELF_ROWS_PER_PAGE = 2;
 const WISH_PREVIEW = 5;
 const WISHLIST_MAX = 50;
 data.wishlist = []; data.wishlistReady = false;
+// ===== 내 책장: 책장 보기와 읽고 싶은 책 목록 =====
 async function loadWishlist() {
   if (!sb) return;
   const { data: rows, error } = await sb.from('wishlist_books').select('id,title,author,publisher,cover_image,description,created_at').order('created_at', { ascending: false });
