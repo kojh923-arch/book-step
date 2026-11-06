@@ -30,11 +30,6 @@ const MISSIONS = [
   ['나와 연결하기', '이 책을 읽고 가장 궁금해진 점은 무엇인가요?'],
   ['나와 연결하기', '이 책을 읽기 전의 나에게 한마디 해 준다면 무엇이라고 말할까요?']
 ];
-const LEVELS = [
-  [0, '독서 준비생', '🌰'], [5, '책 첫걸음', '🌱'], [10, '책 새싹', '🌱'], [20, '독서 탐험가', '🌿'],
-  [40, '열정 독서가', '🌿'], [60, '이야기 수집가', '🪴'], [80, '독서 여행자', '🪴'], [100, '책의 친구', '🌳'],
-  [130, '지식 탐험가', '🌳'], [160, '독서 고수', '📖'], [200, '책 마스터', '🏆']
-];
 const localKey = 'read-step-local-v2';
 const cfg = window.SUPABASE_CONFIG || {};
 const supabaseReady = Boolean(cfg.url && cfg.anonKey && window.supabase);
@@ -105,17 +100,8 @@ function schoolFields() {
 }
 let data = { nickname: '', records: [], feedback: {}, challenges: [], ranking: [], bonus: 0 };
 
-const esc = (v = '') => String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const bookVisual = (record, className = 'record-book-icon') => record.cover_image ? `<span class="${className} record-book-cover"><img src="${esc(record.cover_image)}" alt="${esc(record.title)} 표지" /></span>` : `<span class="${className}">📕</span>`;
 const stars = n => '★'.repeat(Number(n || 0)) + '☆'.repeat(5 - Number(n || 0));
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-// 학급코드가 있으면 학급별 로그인 ID(student2-), 없으면 예전 방식(student-)을 씁니다.
-const loginEmail = (nickname, classCode = '') => {
-  const code = String(classCode || '').trim().toUpperCase();
-  const encoded = btoa(unescape(encodeURIComponent(code ? `${code}:${nickname.trim()}` : nickname.trim()))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  return `${code ? 'student2' : 'student'}-${encoded}@bookstep.local`;
-};
-const levelForCount = count => LEVELS.reduce((r, x) => count >= x[0] ? x : r, LEVELS[0]);
 const levelIcon = item => `<span class="growth-symbol growth-symbol-${LEVELS.indexOf(item)}" aria-hidden="true">${item[2]}</span>`;
 const level = () => levelForCount(data.records.length);
 const nextLevel = () => LEVELS.find(x => x[0] > data.records.length) || LEVELS.at(-1);
@@ -400,21 +386,8 @@ document.addEventListener('change', e => {
 });
 
 // 독서 달력 · 주 단위 연속 기록 · 선생님 칭찬
-function localDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
-function parseLocalDate(text) { const [y, m, d] = String(text).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); }
-function weekStartString(date) { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return localDateString(d); }
 function readingDays() { return new Set(data.records.map(r => String(r.read_date || r.date || '').slice(0, 10)).filter(Boolean)); }
-function weeklyStreak() {
-  const weeks = new Set([...readingDays()].map(day => weekStartString(parseLocalDate(day))));
-  const cursor = parseLocalDate(weekStartString(new Date()));
-  const shift = () => cursor.setDate(cursor.getDate() - 7);
-  const key = () => localDateString(cursor);
-  const thisWeekDone = weeks.has(key());
-  if (!thisWeekDone) shift();
-  let count = 0;
-  while (weeks.has(key())) { count += 1; shift(); }
-  return { count, thisWeekDone };
-}
+function weeklyStreak() { return weeklyStreakFor(readingDays()); }
 function calendarPanel() {
   const offset = state.calOffset || 0;
   const base = new Date();
@@ -460,9 +433,8 @@ async function loadCommunity() {
   if (!ranking.error) data.ranking = ranking.data || [];
   if (!bonus.error) data.bonus = Number(bonus.data) || 0;
 }
-const stampBonus = () => Math.floor(Object.keys(data.feedback || {}).length / 3);
-function stickerCount() { return data.records.length + (data.bonus || 0) + stampBonus(); }
-function shortDate(text) { const [, m, d] = String(text).slice(0, 10).split('-'); return `${Number(m)}/${Number(d)}`; }
+const stampBonus = () => stampBonusFor(Object.keys(data.feedback || {}).length);
+function stickerCount() { return stickerTotal(data.records.length, data.bonus, Object.keys(data.feedback || {}).length); }
 function challengeCard(item) {
   const target = Number(item.target_books), progress = Number(item.progress), mine = Number(item.my_count);
   const pct = Math.min(100, Math.round((progress / target) * 100));

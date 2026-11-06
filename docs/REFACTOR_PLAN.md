@@ -14,7 +14,7 @@
 4. 한 단계 = 한 PR. 문제 시 PR 단위로 되돌린다.
 
 ## 단계
-1. **순수 함수 분리** (`lib/levels.js`, `lib/dates.js`, `lib/sticker.js`): `levelForCount`, 날짜·주간 연속 기록, `stickerCount` 등. 이후 Node 단위 테스트 추가.
+1. ✅ **(완료)** **순수 함수 분리** (`lib/levels.js`, `lib/dates.js`, `lib/sticker.js`): `levelForCount`, 날짜·주간 연속 기록, `stickerCount` 등. 이후 Node 단위 테스트 추가.
 2. **데이터 계층 분리** (`lib/api.js`): `loadRecords`, `saveToSupabase`, `fetchBooks`, 방·위시리스트 호출을 한곳에.
 3. **뷰 파일 분리** (`views/home.js`, `record.js`, `history.js`, `shelf.js`, `growth.js`, `room.js`, `auth.js`): 각 파일이 HTML 문자열 함수 하나씩 내보냄. 긴 한 줄 템플릿은 여러 줄로 정리.
 4. **`render()` 라우터화**: `const views = { home, record, ... }; views[state.view]()`.
@@ -28,3 +28,6 @@
 
 ## 권장 순서
 1 → 2 → 3·4 → 5 → 6 → 7 → 8. 1단계부터 시작하면 위험이 가장 작다.
+
+## 진행 기록
+- 1단계 완료: `lib/core.js`(레벨·스티커·주간 연속·날짜·`esc`·`loginEmail`) 분리, `tests/core.test.js` 추가. `loginEmail`은 기존 로그인 ID와 동일한 값을 고정 테스트로 보호.
