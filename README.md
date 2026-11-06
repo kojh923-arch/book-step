@@ -18,6 +18,7 @@
 - SQL 실행 순서와 주의사항: [`docs/SETUP.md`](docs/SETUP.md)
 - 카카오 책 검색 설정: [`KAKAO_BOOK_SEARCH_SETUP.md`](KAKAO_BOOK_SEARCH_SETUP.md)
 - 리팩터링 계획: [`docs/REFACTOR_PLAN.md`](docs/REFACTOR_PLAN.md)
+- 코드 구조 안내: [`docs/CODE_MAP.md`](docs/CODE_MAP.md)
 
 ## 운영 원칙 (중요)
 학생·교사가 입력한 데이터는 운영 DB에 있습니다. 코드 변경 시:
