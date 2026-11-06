@@ -30,11 +30,6 @@ const MISSIONS = [
   ['나와 연결하기', '이 책을 읽고 가장 궁금해진 점은 무엇인가요?'],
   ['나와 연결하기', '이 책을 읽기 전의 나에게 한마디 해 준다면 무엇이라고 말할까요?']
 ];
-const LEVELS = [
-  [0, '독서 준비생', '🌰'], [5, '책 첫걸음', '🌱'], [10, '책 새싹', '🌱'], [20, '독서 탐험가', '🌿'],
-  [40, '열정 독서가', '🌿'], [60, '이야기 수집가', '🪴'], [80, '독서 여행자', '🪴'], [100, '책의 친구', '🌳'],
-  [130, '지식 탐험가', '🌳'], [160, '독서 고수', '📖'], [200, '책 마스터', '🏆']
-];
 const localKey = 'read-step-local-v2';
 const cfg = window.SUPABASE_CONFIG || {};
 const supabaseReady = Boolean(cfg.url && cfg.anonKey && window.supabase);
@@ -105,17 +100,8 @@ function schoolFields() {
 }
 let data = { nickname: '', records: [], feedback: {}, challenges: [], ranking: [], bonus: 0 };
 
-const esc = (v = '') => String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const bookVisual = (record, className = 'record-book-icon') => record.cover_image ? `<span class="${className} record-book-cover"><img src="${esc(record.cover_image)}" alt="${esc(record.title)} 표지" /></span>` : `<span class="${className}">📕</span>`;
 const stars = n => '★'.repeat(Number(n || 0)) + '☆'.repeat(5 - Number(n || 0));
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-// 학급코드가 있으면 학급별 로그인 ID(student2-), 없으면 예전 방식(student-)을 씁니다.
-const loginEmail = (nickname, classCode = '') => {
-  const code = String(classCode || '').trim().toUpperCase();
-  const encoded = btoa(unescape(encodeURIComponent(code ? `${code}:${nickname.trim()}` : nickname.trim()))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  return `${code ? 'student2' : 'student'}-${encoded}@bookstep.local`;
-};
-const levelForCount = count => LEVELS.reduce((r, x) => count >= x[0] ? x : r, LEVELS[0]);
 const levelIcon = item => `<span class="growth-symbol growth-symbol-${LEVELS.indexOf(item)}" aria-hidden="true">${item[2]}</span>`;
 const level = () => levelForCount(data.records.length);
 const nextLevel = () => LEVELS.find(x => x[0] > data.records.length) || LEVELS.at(-1);
@@ -190,7 +176,7 @@ async function fetchBooks(query) {
   if (error) throw new Error(error.message || '도서를 검색하지 못했어요.');
   return result?.items || [];
 }
-async function searchNaverBooks(query) {
+async function searchBooks(query) {
   state.bookSearching = true;
   state.bookSearchError = '';
   state.selectedBookInfo = null;
@@ -255,7 +241,7 @@ function recordForm() {
   const dupNote = dup ? `<div class="dup-note">📌 이 책은 ${esc(String(dup.read_date || dup.date).slice(0, 10))}에 이미 기록했어요. 또 읽었다면 그대로 기록해도 돼요.</div>` : '';
   return layout(`<section class="page-title"><div><p class="eyebrow">BOOK RECORD</p><h1>읽은 책을 기록해요.</h1><p class="subtitle">책을 검색해 간편하게 기록하거나 직접 입력할 수 있어요.</p></div></section><form class="form-card" id="book-form"><div class="form-grid"><div class="field full"><label for="title">책 제목</label><div class="book-search-input"><input id="title" required value="${esc(state.bookQuery)}" placeholder="예: 마당을 나온 암탉" /><button class="secondary-button" type="button" data-action="search-books">🔎 책 검색</button></div>${results}${preview}${dupNote}</div><div class="field"><label for="author">저자</label><input id="author" required value="${esc(state.bookAuthor)}" placeholder="예: 황선미" /></div><div class="field"><label for="date">읽은 날짜</label><input id="date" type="date" value="${today()}" required /></div><div class="field full"><label>내 별점</label><div class="rating">${[1,2,3,4,5].map(n => `<button type="button" class="star ${n <= state.rating ? 'active' : ''}" data-rating="${n}">★</button>`).join('')}</div></div></div><div class="button-row"><button class="primary-button" type="button" data-action="next-mission">다음: 랜덤 미션 보기 →</button><button class="secondary-button" type="button" data-view="home">취소</button></div></form>`, 'record');
 }
-function missionView() { return layout(`<section class="page-title"><div><p class="eyebrow">TODAY'S RANDOM MISSION</p><h1>책을 읽고, 생각을 남겨요.</h1><p class="subtitle"><strong>${esc(state.pendingBook.title)}</strong>을(를) 읽고 다음 질문에 답해 보세요.</p></div></section><section class="mission-layout"><aside class="mission-quote"><div><span class="badge">${esc(state.mission[0])}</span><div class="big" style="margin-top:26px">${esc(state.mission[1])}</div></div><button class="secondary-button" type="button" data-action="reroll">다른 미션 뽑기</button></aside><form class="form-card" id="mission-form"><div class="field"><label for="answer">나의 답변</label><textarea id="answer" required minlength="10" maxlength="2000" placeholder="책을 읽고 떠오른 생각을 자유롭게 적어보세요. (10자 이상)"></textarea></div><p class="notice">답변은 10자 이상 써 주세요. 하루에 최대 5권까지 기록할 수 있어요. 답변을 저장하면 독서 기록이 Supabase에 저장되고 스티커 1개를 받아요.</p><button class="primary-button" type="submit">결과를 Supabase에 저장하고 스티커 받기</button></form></section>`, 'record'); }
+function missionView() { return layout(`<section class="page-title"><div><p class="eyebrow">TODAY'S RANDOM MISSION</p><h1>책을 읽고, 생각을 남겨요.</h1><p class="subtitle"><strong>${esc(state.pendingBook.title)}</strong>을(를) 읽고 다음 질문에 답해 보세요.</p></div></section><section class="mission-layout"><aside class="mission-quote"><div><span class="badge">${esc(state.mission[0])}</span><div class="big" style="margin-top:26px">${esc(state.mission[1])}</div></div><button class="secondary-button" type="button" data-action="reroll">다른 미션 뽑기</button></aside><form class="form-card" id="mission-form"><div class="field"><label for="answer">나의 답변</label><textarea id="answer" required minlength="10" maxlength="2000" placeholder="책을 읽고 떠오른 생각을 자유롭게 적어보세요. (10자 이상)"></textarea></div><p class="notice">답변은 10자 이상 써 주세요. 하루에 최대 5권까지 기록할 수 있어요. 답변을 저장하면 독서 기록이 안전하게 저장되고 스티커 1개를 받아요.</p><button class="primary-button" type="submit">저장하고 스티커 받기</button></form></section>`, 'record'); }
 function recordModal() {
   const r = state.selectedRecord;
   const editing = r && state.editingId === r.id;
@@ -306,7 +292,7 @@ document.addEventListener('click', async e => {
   const view = e.target.closest('[data-view]')?.dataset.view;
   if (view) { state.view = view; state.pendingBook = null; state.mission = null; state.selectedRecord = null; if (view === 'record') { state.rating = 0; state.bookQuery = ''; state.bookAuthor = ''; state.selectedBookInfo = null; state.bookDescriptionExpanded = false; state.bookResults = []; state.bookSearchError = ''; } render(); if (view === 'home') loadHomeRecommendations(); return; }
   const action = e.target.closest('[data-action]')?.dataset.action;
-  if (action === 'search-books') { const query = document.querySelector('#title').value.trim(); if (query.length < 2) { state.bookSearchError = '두 글자 이상 책 제목을 입력해 주세요.'; render(); return; } state.bookQuery = query; try { await searchNaverBooks(query); } catch (error) { state.bookSearchError = error.message || '도서를 검색하지 못했어요.'; } finally { state.bookSearching = false; render(); } return; }
+  if (action === 'search-books') { const query = document.querySelector('#title').value.trim(); if (query.length < 2) { state.bookSearchError = '두 글자 이상 책 제목을 입력해 주세요.'; render(); return; } state.bookQuery = query; try { await searchBooks(query); } catch (error) { state.bookSearchError = error.message || '도서를 검색하지 못했어요.'; } finally { state.bookSearching = false; render(); } return; }
   if (action === 'select-book') { const index = Number(e.target.closest('[data-book-index]')?.dataset.bookIndex); const book = state.bookResults[index]; if (book) { state.bookQuery = book.title; state.bookAuthor = book.author; state.selectedBookInfo = book; state.bookDescriptionExpanded = false; state.bookResults = []; state.bookSearchError = ''; render(); } return; }
   if (action === 'toggle-book-description') { state.bookDescriptionExpanded = !state.bookDescriptionExpanded; render(); if (state.bookDescriptionExpanded) requestAnimationFrame(() => document.querySelector('.selected-book-preview')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })); return; }
   if (action === 'open-record') { const id = e.target.closest('[data-record-id]')?.dataset.recordId; state.editingId = null; state.selectedRecord = data.records.find(record => String(record.id) === String(id)) || null; render(); markFeedbackSeen(state.selectedRecord); return; }
@@ -400,21 +386,8 @@ document.addEventListener('change', e => {
 });
 
 // 독서 달력 · 주 단위 연속 기록 · 선생님 칭찬
-function localDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
-function parseLocalDate(text) { const [y, m, d] = String(text).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); }
-function weekStartString(date) { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return localDateString(d); }
 function readingDays() { return new Set(data.records.map(r => String(r.read_date || r.date || '').slice(0, 10)).filter(Boolean)); }
-function weeklyStreak() {
-  const weeks = new Set([...readingDays()].map(day => weekStartString(parseLocalDate(day))));
-  const cursor = parseLocalDate(weekStartString(new Date()));
-  const shift = () => cursor.setDate(cursor.getDate() - 7);
-  const key = () => localDateString(cursor);
-  const thisWeekDone = weeks.has(key());
-  if (!thisWeekDone) shift();
-  let count = 0;
-  while (weeks.has(key())) { count += 1; shift(); }
-  return { count, thisWeekDone };
-}
+function weeklyStreak() { return weeklyStreakFor(readingDays()); }
 function calendarPanel() {
   const offset = state.calOffset || 0;
   const base = new Date();
@@ -460,9 +433,8 @@ async function loadCommunity() {
   if (!ranking.error) data.ranking = ranking.data || [];
   if (!bonus.error) data.bonus = Number(bonus.data) || 0;
 }
-const stampBonus = () => Math.floor(Object.keys(data.feedback || {}).length / 3);
-function stickerCount() { return data.records.length + (data.bonus || 0) + stampBonus(); }
-function shortDate(text) { const [, m, d] = String(text).slice(0, 10).split('-'); return `${Number(m)}/${Number(d)}`; }
+const stampBonus = () => stampBonusFor(Object.keys(data.feedback || {}).length);
+function stickerCount() { return stickerTotal(data.records.length, data.bonus, Object.keys(data.feedback || {}).length); }
 function challengeCard(item) {
   const target = Number(item.target_books), progress = Number(item.progress), mine = Number(item.my_count);
   const pct = Math.min(100, Math.round((progress / target) * 100));
