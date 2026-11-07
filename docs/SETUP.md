@@ -11,7 +11,8 @@ Supabase SQL Editor에서 아래 순서로 한 번씩 실행합니다. 모두 �
 6. `supabase-feedback.sql` — 교사 도장·한마디
 7. `supabase-wishlist.sql` — 읽고 싶은 책 (순서 무관, 1 다음이면 가능)
 8. `supabase-room.sql` — 방 꾸미기
-9. `supabase-hardening.sql` — 보안 강화 (**항상 마지막**)
+9. `supabase-hardening.sql` — 보안 강화
+10. `supabase-admin.sql` — 슈퍼 관리자 (**항상 마지막**, 아래 4번 참고)
 
 > ⚠️ 이미 운영 중인 DB에서는 **바뀐 파일만** 실행하세요. 특히 `supabase-room.sql`은 최근
 > (`classmate_rooms` 접근 제한) 수정되었으므로, 운영 DB 반영 여부를 확인하고 실행 후
@@ -38,3 +39,12 @@ Supabase SQL Editor에서 아래 순서로 한 번씩 실행합니다. 모두 �
 ## 4. 알려진 개선 과제
 - `supabase-js`가 CDN에서 `@2`로 느슨하게 로드됩니다. 정확한 버전 고정은 로그인 흐름 점검과 함께 진행 권장.
 - 테스트: `node --test tests/*.test.js` (Node 20+, 설치 불필요). 현재 `lib/core.js`의 순수 함수만 대상.
+
+## 5. 슈퍼 관리자 (전체 학교·교사·학급·학생 보기, 읽기 전용)
+1. 백업 확인 후 `supabase-admin.sql`을 SQL Editor에서 실행 (기존 데이터는 바뀌지 않음, 여러 번 실행 가능).
+2. `teacher.html`에서 **첫 교사 계정 만들기**로 관리자용 계정을 하나 만듭니다. (예: 닉네임 `관리자`)
+3. SQL Editor에서 한 번 실행: `update public.profiles set role = 'admin' where nickname = '관리자' and role = 'teacher';`
+4. 같은 `teacher.html` 로그인 화면에서 그 아이디·비밀번호로 들어가면 관리자 화면이 열립니다.
+- 관리자는 앱 화면에서 지정할 수 없고 SQL로만 지정됩니다. 되돌리기: `update public.profiles set role = 'teacher' where nickname = '관리자';`
+- 미션 답변 본문은 관리자 화면에도 표시되지 않습니다. 수정·삭제 기능도 없습니다.
+- 교사 인증코드(`TEACHER_SETUP_CODE`)를 아는 사람은 교사 계정을 만들 수 있으므로, 관리자 계정 비밀번호는 강하게 설정하세요.

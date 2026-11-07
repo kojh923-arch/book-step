@@ -4,6 +4,7 @@ const sb = ready ? window.supabase.createClient(cfg.url, cfg.anonKey) : null;
 const TEACHER_SIGNUP_FUNCTION = 'teacher-signup';
 
 let teacher = null;
+let adminMode = false; // role='admin' 로그인 시 admin-dashboard.js 화면 사용
 let students = [];
 let records = [];
 let mode = 'login';
@@ -142,7 +143,7 @@ function dashboardScreen() {
   <aside class="panel"><p class="eyebrow">RECENT RECORDS</p><h2>최근 미션 답변</h2><div class="teacher-records">${latest.length ? latest.map(record => `<details class="teacher-record"><summary><div><strong>${escapeHtml(record.student_nickname || '학생')}</strong><span class="record-meta">${escapeHtml(record.title)} · ${escapeHtml(record.read_date)}</span></div></summary><p><strong>${escapeHtml(record.mission)}</strong></p><p class="subtitle">${escapeHtml(record.answer)}</p></details>`).join('') : '<div class="empty">아직 제출된 기록이 없어요.</div>'}</div></aside></section>${studentRecordModal()}</div></div>`;
 }
 
-function render() { document.querySelector('#teacher-app').innerHTML = teacher ? dashboardScreen() : loginScreen(); }
+function render() { document.querySelector('#teacher-app').innerHTML = teacher ? (adminMode ? adminScreen() : dashboardScreen()) : loginScreen(); }
 
 async function restoreSession() {
   if (!ready) return;
@@ -150,6 +151,7 @@ async function restoreSession() {
   if (!session) return;
   const { data: profile, error: profileError } = await sb.from('profiles').select('nickname,role,schools(code,name,office_code,office_name,address)').eq('id', session.user.id).maybeSingle();
   if (profileError) throw new Error('교사 정보를 불러오지 못했어요. 데이터베이스 설정(SQL)을 확인해 주세요. (' + profileError.message + ')');
+  if (profile?.role === 'admin') { adminMode = true; teacher = profile; await loadAdmin(); return; }
   if (profile?.role !== 'teacher') { await sb.auth.signOut(); return; }
   teacher = profile;
   applyTeacherSchool(profile);
@@ -187,6 +189,7 @@ document.addEventListener('submit', async event => {
     if (error) throw error;
     const { data: profile, error: profileError } = await sb.from('profiles').select('nickname,role,schools(code,name,office_code,office_name,address)').eq('id', data.user.id).maybeSingle();
   if (profileError) throw new Error('교사 정보를 불러오지 못했어요. 데이터베이스 설정(SQL)을 확인해 주세요. (' + profileError.message + ')');
+    if (profile?.role === 'admin') { adminMode = true; teacher = profile; draft.nickname = draft.password = draft.code = ''; await loadAdmin(); render(); return; }
     if (profile?.role !== 'teacher') { await sb.auth.signOut(); throw new Error('교사용 계정으로 로그인해 주세요.'); }
     teacher = profile;
   applyTeacherSchool(profile);
@@ -565,4 +568,20 @@ document.addEventListener('click', async event => {
       await loadDashboard(); render(); window.scrollTo(0, 0);
     } catch (error) { alert(error.message); }
   }
+});
+
+// 슈퍼 관리자 화면 이벤트 (읽기 전용 이동·로그아웃만)
+document.addEventListener('click', async event => {
+  const el = event.target.closest('[data-admin]'); if (!el || !adminMode) return;
+  const kind = el.dataset.admin;
+  try {
+    adminState.error = '';
+    if (kind === 'logout') { await sb.auth.signOut(); teacher = null; adminMode = false; render(); return; }
+    if (kind === 'home') { adminState.school = null; adminState.selectedClass = null; adminState.student = null; }
+    if (kind === 'school') await adminOpenSchool(el.dataset.id);
+    if (kind === 'class') await adminOpenClass(el.dataset.id);
+    if (kind === 'student') await adminOpenStudent(el.dataset.id, el.dataset.from === 'un' ? adminState.unassigned : adminState.students);
+    if (kind === 'close-student') { if (event.target !== el && !event.target.closest('button[data-admin="close-student"]')) return; adminState.student = null; }
+  } catch (error) { adminState.error = error.message || '불러오지 못했어요.'; }
+  render();
 });

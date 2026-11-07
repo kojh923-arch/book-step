@@ -10,6 +10,7 @@
 | `app-supabase.js` | 학생 앱 본체. 안에 `// ===== 제목 =====` 표시로 구역이 나뉘어 있음 |
 | `tests/core.test.js` | `lib/core.js` 자동 테스트 (`node --test tests/*.test.js`) |
 | `teacher.html`, `teacher-dashboard.js`, `teacher-room.js` | 교사용 화면 (아직 정리 전, 원래 모습 그대로) |
+| `admin-dashboard.js`, `supabase-admin.sql` | 슈퍼 관리자 화면(읽기 전용)과 조회 함수. `role='admin'`으로 `teacher.html`에 로그인하면 표시 |
 | `supabase-*.sql`, `supabase/functions/` | DB 구조와 서버 함수. 순서는 `docs/SETUP.md` |
 
 ## `app-supabase.js` 구역 (위에서 아래)
