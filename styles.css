@@ -506,7 +506,7 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 
 /* 내 방 꾸미기 */
 .sticker-wallet { align-self: center; background: var(--yellow); color: var(--ink); font-weight: 900; border-radius: 999px; padding: 10px 16px; white-space: nowrap; }
-.room { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; width: 100%; max-width: 1008px; margin: 0 auto 22px; border-radius: 24px; overflow: hidden; border: 3px solid #fff; box-shadow: var(--shadow); background: var(--wall); }
+.room { position: relative; container-type: inline-size; aspect-ratio: 875 / 708;   /* 바닥 마름모가 정확히 2:1(아이템 그림과 같은 기울기)이 되는 비율 */ width: 100%; max-width: 1008px; margin: 0 auto 22px; border-radius: 24px; overflow: hidden; border: 3px solid #fff; box-shadow: var(--shadow); background: var(--wall); }
 .room-wall, .room-floor { position: absolute; left: 0; right: 0; border: 0; padding: 0; cursor: pointer; }
 .room-wall { top: 0; height: 58%; background: var(--wall); }
 .room-floor { bottom: 0; height: 42%; background: var(--floor); border-top: 6px solid rgba(0, 0, 0, .08); }
@@ -522,14 +522,14 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .shop-item button:disabled { opacity: .6; cursor: not-allowed; }
 .shop-icon { font-size: 40px; line-height: 1; height: 48px; display: grid; place-items: center; }
 .room-swatch { display: block; width: 46px; height: 46px; border-radius: 12px; border: 2px solid rgba(0, 0, 0, .1); }
-@media (max-width: 520px) { .room { aspect-ratio: 4 / 3; } .sticker-wallet { margin-top: 8px; display: inline-block; } }
+@media (max-width: 520px) { .sticker-wallet { margin-top: 8px; display: inline-block; } }
 
 /* 친구 방 구경 · 레벨 선물 */
 .room-modes { display: flex; gap: 8px; margin-bottom: 14px; }
 .room-hint { margin: -8px 0 18px; font-size: 13px; text-align: center; }
 .friend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .friend-room strong { display: block; margin: 0 0 8px 6px; }
-.room-mini { max-width: none; margin: 0; aspect-ratio: 16 / 10; pointer-events: none; }
+.room-mini { max-width: none; margin: 0; aspect-ratio: 875 / 708; pointer-events: none; }
 .level-gift { background: var(--yellow); border-radius: 14px; padding: 10px 14px; font-weight: 800; }
 
 /* 내 방: 세트 · 필터 · 레벨 선물 */
@@ -636,10 +636,10 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .room-cy .room-wall, .room-cy .room-floor { display: none; }
 .cy-wall, .cy-floor, .cy-lines { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
 .cy-wall { background: var(--wall); }
-.cy-wall-l { clip-path: polygon(6.25% 32%, 50% 6%, 50% 42%, 6.25% 68%); filter: brightness(.93); }
-.cy-wall-r { clip-path: polygon(50% 6%, 93.75% 32%, 93.75% 68%, 50% 42%); }
-.cy-floor { background: var(--floor); clip-path: polygon(50% 42%, 93.75% 68%, 50% 96%, 6.25% 68%); }
-.cy-lines { width: 100%; height: 100%; fill: none; stroke: rgba(70, 45, 20, .4); stroke-width: 1.4; stroke-linejoin: round; }
+.cy-wall-l { clip-path: polygon(6.25% 33%, 50% 6%, 50% 42.6%, 6.25% 69%);   /* 안쪽 모서리만 바닥 밑으로 살짝 내려서 틈을 막아요 (바깥 모서리는 그대로) */ filter: brightness(.93); }
+.cy-wall-r { clip-path: polygon(50% 6%, 93.75% 33%, 93.75% 69%, 50% 42.6%); }
+.cy-floor { background: var(--floor); clip-path: polygon(50% 42%, 93.75% 69%, 50% 96%, 6.25% 69%); }
+.cy-lines { width: 100%; height: 100%; fill: none; stroke: rgba(70, 45, 20, .4); stroke-width: 1.6; stroke-linejoin: round; }
 .cy-lines * { vector-effect: non-scaling-stroke; }
 .room-dot { border: 4px solid #3b2f2f; border-radius: 6px; box-shadow: 5px 5px 0 #3b2f2f; image-rendering: pixelated; }
 .room.room-dot { background: repeating-conic-gradient(#e9f5ff 0 25%, #dcefff 0 50%) 0 0 / 16px 16px; }
@@ -703,7 +703,35 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 
 /* 바닥 무늬를 마름모 바닥 방향(쿼터뷰)으로 눕혀서 깔아요: 정사각형을 45° 돌리고 세로로 눌러요 */
 .cy-floor { background: none; }
-.cy-floor::before { content: ""; position: absolute; left: 50%; top: 69%; width: 61.9%; aspect-ratio: 1; background: var(--floor); transform: translate(-50%, -50%) scaleY(.386) rotate(45deg); }
-@media (max-width: 520px) { .cy-floor::before { transform: translate(-50%, -50%) scaleY(.463) rotate(45deg); } }
+.cy-floor::before { content: ""; position: absolute; left: 50%; top: 69%; width: 66%; aspect-ratio: 1; background: var(--floor); transform: translate(-50%, -50%) scaleY(.5) rotate(45deg); }   /* 마름모보다 넉넉하게 깔고 잘라내요 */
 /* 도트 펫 */
 .room-obj img[src*="/pet_"], .shop-icon img[src*="/pet_"], .gift-icon img[src*="/pet_"] { image-rendering: pixelated; }
+
+/* 미니룸 방문자 수 · 방명록 */
+.room-counter { display: flex; align-items: center; justify-content: center; gap: 10px; max-width: 1008px; margin: 0 auto 10px; padding: 6px 14px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: #6b6f86; letter-spacing: .04em; }
+.room-counter strong { font-family: inherit; color: var(--ink); margin-right: 6px; letter-spacing: 0; }
+.room-counter b { color: #ff6b3d; font-size: 15px; }
+.room-counter i { width: 1px; height: 12px; background: #c9cbe0; }
+.visit-btn { margin-top: 8px; width: 100%; }
+.visit-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 1008px; margin: 0 auto 8px; }
+.visit-head h2 { margin: 0; font-size: 20px; }
+.guestbook { max-width: 1008px; margin: 0 auto 18px; }
+.guestbook h3 { margin: 0 0 12px; font-size: 17px; }
+.gb-form { display: grid; gap: 8px; padding: 12px; margin-bottom: 12px; border-radius: 16px; background: #fffaf3; border: 1px dashed #f0c9a0; }
+.gb-stamps { display: flex; flex-wrap: wrap; gap: 6px; }
+.gb-stamp-btn { display: flex; align-items: center; gap: 4px; padding: 6px 10px; border: 2px solid var(--line); border-radius: 999px; background: #fff; cursor: pointer; font: inherit; }
+.gb-stamp-btn span { font-size: 18px; line-height: 1; }
+.gb-stamp-btn small { font-size: 12px; font-weight: 800; color: var(--muted); }
+.gb-stamp-btn.active { border-color: var(--orange); background: #fff1e4; }
+.gb-stamp-btn.active small { color: var(--ink); }
+.gb-write { display: flex; gap: 8px; }
+.gb-write input { flex: 1; min-width: 0; padding: 9px 12px; border: 2px solid var(--line); border-radius: 12px; font: inherit; }
+.gb-rule { color: var(--muted); font-weight: 700; font-size: 12px; }
+.gb-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.gb-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 14px; background: #f7f9ff; border: 1px solid #e6e9fb; }
+.gb-emoji { font-size: 24px; line-height: 1.1; }
+.gb-body { flex: 1; min-width: 0; }
+.gb-body b { margin-right: 6px; }
+.gb-body small { color: var(--muted); font-weight: 700; font-size: 12px; }
+.gb-body p { margin: 2px 0 0; word-break: break-all; }
+.gb-del { padding: 4px 10px; font-size: 12px; }

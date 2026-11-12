@@ -325,6 +325,46 @@ def study_partition(p):
     p.rrect(2, 6, 5, 8, 1.01, PINK); p.rrect(8, 11, 4, 7, 1.01, MINT)
     p.rrect(4, 7, 1.5, 4, 1.01, YEL)
 
+# ---------- 뒷모습 (돌리기용): 의자는 책상을 보고 앉게, 책상·컴퓨터는 뒤에서 본 모습 ----------
+def swivel_chair_back(p):
+    for dx, dy in ((5, 0), (-5, 0), (0, 5), (0, -5)):
+        p.line((6, 6, 1.2), (6 + dx, 6 + dy, 0.8), DARK, max(2, round(p.u * 1.2))); p.blob(6 + dx, 6 + dy, 0.2, 1.2, .9, DARK)
+    p.cyl(6, 6, 1, 0.7, 7, GRAY)
+    p.box(1, 1, 8, 10, 10, 2.4, PINK)
+    for yy in (0.2, 10.3): p.box(2, yy, 10.4, 7, 1.4, 1, DARK); p.box(3.5, yy, 8.5, 1, 1.4, 2, DARK)
+    p.box(10, 1.5, 10, 2, 9, 12, PINK, right=tone(PINK, .78), top=tone(PINK, 1.1))
+    p.rrect(3, 7.5, 13, 19, 12.01, tone(PINK, .7))
+
+def sitting_chair_back(p):
+    p.box(0, 0, 0, 12, 12, 2.6, BEIGE)
+    p.box(1, 1, 2.6, 10.5, 10.5, 1.6, PINK)
+    p.poly([(12, 12, 2), (10.5, 12, 2), (13.5, 12, 15), (15, 12, 15)], tone(BEIGE, .95))
+    p.poly([(12, 0, 2), (12, 12, 2), (15, 12, 15), (15, 0, 15)], tone(BEIGE, .8))
+    p.poly([(13.5, 0, 15), (13.5, 12, 15), (15, 12, 15), (15, 0, 15)], tone(BEIGE, 1.1))
+
+def study_desk_back(p):
+    for lx, ly in ((0, 0), (22.5, 0), (0, 10.5), (22.5, 10.5)): p.box(lx, ly, 0, 1.5, 1.5, 14, WOOD2)
+    p.box(1.5, 10.5, 9, 21, 1, 1.2, WOOD2)
+    p.box(1.5, 0, 10.2, 10, 10, 3.8, WOOD)
+    p.box(0, 0, 14, 24, 12, 1.6, WOOD)
+    p.box(15, 5, 15.6, 6, 4.5, 0.8, WHITE); p.box(15.4, 5.4, 16.4, 5.2, 3.7, 0.5, CREAM)
+    p.cyl(5, 8.5, 15.6, 1.4, 3, SKY); p.line((4.6, 8.2, 18.6), (4.0, 7.6, 21.5), RED, 2); p.line((5.4, 8.6, 18.6), (5.9, 8.0, 21.8), YEL, 2)
+
+def laptop_back(p):
+    p.box(0, 0, 0, 13, 9, 0.9, GRAY)
+    p.poly([(13, 0, 0.9), (13, 9, 0.9), (14.6, 9, 9.5), (14.6, 0, 9.5)], tone(GRAY, .9))
+    p.blob(13.9, 4.5, 5.6, 1.1, 1.1, WHITE, edge=False)
+
+def desktop_pc_back(p):   # 앞모습을 180° 돌린 배치
+    p.box(0, -6, 0, 4.5, 11, 0.6, WHITE); p.blob(1.5, -8, 0.4, 1.6, 1.1, WHITE)
+    p.box(5.5, -1, 0, 5, 4, 0.8, GRAY); p.box(7.3, 0.4, 0.8, 1.4, 1.2, 4, GRAY)
+    p.box(8.9, -7, 4.5, 1.6, 14, 10, GRAY, right=tone(GRAY, .8))
+    p.rrect(-4, 2, 7, 12, 10.51, tone(GRAY, .7))
+    p.box(6.5, 9, 0, 9, 5, 15, WHITE)
+
+BACK = {'swivel_chair': swivel_chair_back, 'sitting_chair': sitting_chair_back, 'study_desk': study_desk_back,
+        'laptop': laptop_back, 'desktop_pc': desktop_pc_back}
+
 ITEMS = {f.__name__: f for f in [study_desk, bookcase5, storage_bed, drawer3, floor_table, clothes_hanger, book_cart, full_mirror,
          floor_cushion, sitting_ball, sitting_chair, storage_stool, swivel_chair, mood_lamp, stand_lamp,
          mini_board, dday_calendar, wall_pocket, mini_shelf, memo_board, design_frame,
@@ -334,7 +374,10 @@ ITEMS = {f.__name__: f for f in [study_desk, bookcase5, storage_bed, drawer3, fl
 WALL = {'mini_board', 'dday_calendar', 'wall_pocket', 'mini_shelf', 'memo_board', 'design_frame'}
 
 def render(fn, u):
-    p = Pen(u); fn(p); return p.img
+    p = Pen(u); fn(p); return p
+
+def back_corner(p):   # 발자국의 뒤쪽 모서리(벽 두 면이 만나는 쪽) 화면 좌표
+    return p.P(p.fp[0], p.fp[1], 0)
 
 if __name__ == '__main__':
     PX = float(os.environ.get('PX', '4.6'))   # 방 폭 1%당 도트 칸 수
@@ -344,11 +387,23 @@ if __name__ == '__main__':
     sql = open('supabase-room.sql', encoding='utf-8').read()
     base_w = {m[0]: float(m[1]) for m in re.findall(r"'assets/room/([a-z0-9_]+)\.png[^']*',\s*([\d.]+)\)", sql)}
     man = {m['id']: m for m in json.load(open('assets/room/manifest.json', encoding='utf-8'))}
+    anchors = {}
     for name in only:
         fn = ITEMS[name]
-        w1 = render(fn, 1).getbbox(); w1 = w1[2] - w1[0]
-        target = base_w[name] * PX
-        img = render(fn, target / w1)
-        m = man.get(name, {'w': 1, 'h': 1})
-        finish(img, target, m['w'] / m['h'], anchor='center' if name in WALL else 'bottom').save(f'{out}/{name}.png', optimize=True)
+        w1 = render(fn, 1).img.getbbox(); w1 = w1[2] - w1[0]
+        u = base_w[name] * PX / w1
+        p = render(fn, u)
+        m = man.get(name, {'w': 1, 'h': 1}); kind = 'center' if name in WALL else 'bottom'
+        finish(p.img, 0, m['w'] / m['h'], anchor=kind, point=back_corner(p)).save(f'{out}/{name}.png', optimize=True)
+        size = finish.size; anchors[name] = [*finish.point, round(size[1] / size[0], 4)]
+        if name in BACK:   # 뒷모습: 같은 배율·같은 캔버스 크기로 그려서 돌려도 크기가 그대로예요
+            q = render(BACK[name], u)
+            finish(q.img, 0, m['w'] / m['h'], anchor=kind, size=size, point=back_corner(q)).save(f'{out}/{name}_back.png', optimize=True)
+            anchors[name + '_back'] = [*finish.point, round(finish.size[1] / finish.size[0], 4)]
+            if finish.size != size: print('!! size mismatch', name, size, finish.size)
         print(name, 'ok')
+    if only == list(ITEMS):
+        with open('room-dot-data.js', 'w', encoding='utf-8') as fp:
+            fp.write('// scripts/cyroom_items.py가 만든 파일이에요. 직접 고치지 말고 스크립트를 고쳐서 다시 만들어 주세요.\n')
+            fp.write('// anchors: 그림 속 뒤쪽 바닥 모서리 위치(가로 비율, 세로 비율)와 그림 세로/가로 비율 → 벽에 딱 붙이기에 써요\n')
+            fp.write('window.ROOM_DOT = ' + json.dumps({'version': 4, 'back': sorted(BACK), 'wall': sorted(WALL), 'anchors': anchors}, ensure_ascii=False) + ';\n')
