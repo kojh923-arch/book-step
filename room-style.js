@@ -22,35 +22,11 @@ function roomBackdrop() {
     + '<svg class="cy-lines" viewBox="0 0 160 100" preserveAspectRatio="none" aria-hidden="true"><polygon points="80,42 150,68 80,96 10,68"/><polyline points="10,68 10,32 80,6 150,32 150,68"/><line x1="80" y1="42" x2="80" y2="6"/></svg>';
 }
 
-// 도트 모드: 아이템 그림을 작은 해상도로 줄이고 색을 줄여서 도트 느낌으로 보여줘요. (한 번 만들면 기억해 둬요)
-const pixelCache = new Map();
+// 도트 모드: 미리 만들어 둔 도트 그림(assets/room/dot/)으로 바꿔 보여줘요. DB의 그림 경로는 그대로예요.
+// 도트 그림이 없는 아이템은 원래 그림을 그대로 써요.
+const DOT_ITEMS = new Set(['acoustic_guitar', 'air_purifier', 'blanket_basket', 'book_cart', 'bookcase5', 'clothes_hanger', 'dday_calendar', 'design_frame', 'desktop_pc', 'drawer3', 'eraser_cleaner', 'floor_cushion', 'floor_table', 'full_mirror', 'headphone_stand', 'keyboard_mouse', 'laptop', 'memo_board', 'memo_clip', 'mini_board', 'mini_bookrack', 'mini_shelf', 'monstera', 'mood_lamp', 'pencil_sharpener', 'phone_stand', 'power_strip_box', 'scissors_tape', 'sitting_ball', 'sitting_chair', 'stand_lamp', 'storage_bed', 'storage_stool', 'study_desk', 'study_partition', 'swivel_chair', 'tablet_pencil', 'tumbler_rack', 'wall_pocket']);
 function pixelSrc(src) {
   if (getRoomStyle() !== 'dot' || !src) return src;
-  const hit = pixelCache.get(src);
-  if (hit && hit !== 'pending') return hit;
-  if (!hit) {
-    pixelCache.set(src, 'pending');
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const w = 56, h = Math.max(1, Math.round(img.naturalHeight * w / img.naturalWidth));
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, w, h);
-        const frame = ctx.getImageData(0, 0, w, h), px = frame.data;
-        for (let i = 0; i < px.length; i += 4) {
-          px[i] = Math.round(px[i] / 255 * 5) * 51; px[i + 1] = Math.round(px[i + 1] / 255 * 5) * 51; px[i + 2] = Math.round(px[i + 2] / 255 * 5) * 51;
-          px[i + 3] = px[i + 3] < 128 ? 0 : 255;
-        }
-        ctx.putImageData(frame, 0, 0);
-        const url = canvas.toDataURL('image/png');
-        pixelCache.set(src, url);
-        document.querySelectorAll('img[data-px]').forEach(el => { if (el.dataset.px === src && getRoomStyle() === 'dot') el.src = url; });
-      } catch { pixelCache.set(src, src); }
-    };
-    img.onerror = () => pixelCache.set(src, src);
-    img.src = src;
-  }
-  return src;
+  const m = /^assets\/room\/([a-z0-9_]+)\.png/.exec(src);
+  return m && DOT_ITEMS.has(m[1]) ? `assets/room/dot/${m[1]}.png?v=1` : src;
 }

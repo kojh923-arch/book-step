@@ -33,7 +33,7 @@ function troomObjHtml(obj) {
   const item = troomItem(obj.item_id);
   if (!item?.img) return '';
   const handles = ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
-  return `<div class="room-obj${troom.selected === obj.id ? ' selected' : ''}" data-oid="${escapeHtml(obj.id)}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / TROOM_ZOOM}%;z-index:${10 + Number(obj.z || 0)}"><img src="${escapeHtml(pixelSrc(item.img))}" data-px="${escapeHtml(item.img)}" alt="${escapeHtml(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
+  return `<div class="room-obj${troom.selected === obj.id ? ' selected' : ''}" data-oid="${escapeHtml(obj.id)}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / TROOM_ZOOM}%;z-index:${10 + Number(obj.z || 0)}"><img src="${escapeHtml(pixelSrc(item.img))}" alt="${escapeHtml(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
 }
 function troomScene() {
   const wall = troomCurrent('wallpaper'), floor = troomCurrent('floor');
