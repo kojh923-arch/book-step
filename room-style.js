@@ -22,11 +22,11 @@ function roomBackdrop() {
     + '<svg class="cy-lines" viewBox="0 0 160 100" preserveAspectRatio="none" aria-hidden="true"><polygon points="80,42 150,68 80,96 10,68"/><polyline points="10,68 10,32 80,6 150,32 150,68"/><line x1="80" y1="42" x2="80" y2="6"/></svg>';
 }
 
-// 도트 모드: 미리 만들어 둔 도트 그림(assets/room/dot/)으로 바꿔 보여줘요. DB의 그림 경로는 그대로예요.
+// 도트 모드: 싸이월드풍으로 새로 그린 도트 그림(assets/room/dot/, scripts/cyroom_items.py로 생성)으로 바꿔 보여줘요. DB의 그림 경로는 그대로예요.
 // 도트 그림이 없는 아이템은 원래 그림을 그대로 써요.
 const DOT_ITEMS = new Set(['acoustic_guitar', 'air_purifier', 'blanket_basket', 'book_cart', 'bookcase5', 'clothes_hanger', 'dday_calendar', 'design_frame', 'desktop_pc', 'drawer3', 'eraser_cleaner', 'floor_cushion', 'floor_table', 'full_mirror', 'headphone_stand', 'keyboard_mouse', 'laptop', 'memo_board', 'memo_clip', 'mini_board', 'mini_bookrack', 'mini_shelf', 'monstera', 'mood_lamp', 'pencil_sharpener', 'phone_stand', 'power_strip_box', 'scissors_tape', 'sitting_ball', 'sitting_chair', 'stand_lamp', 'storage_bed', 'storage_stool', 'study_desk', 'study_partition', 'swivel_chair', 'tablet_pencil', 'tumbler_rack', 'wall_pocket']);
 function pixelSrc(src) {
   if (getRoomStyle() !== 'dot' || !src) return src;
   const m = /^assets\/room\/([a-z0-9_]+)\.png/.exec(src);
-  return m && DOT_ITEMS.has(m[1]) ? `assets/room/dot/${m[1]}.png?v=2` : src;
+  return m && DOT_ITEMS.has(m[1]) ? `assets/room/dot/${m[1]}.png?v=3` : src;
 }
