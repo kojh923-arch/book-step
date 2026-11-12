@@ -140,6 +140,38 @@ on conflict (id) do update set
   unlock_level = excluded.unlock_level, reward_level = excluded.reward_level, category = excluded.category,
   img = excluded.img, base_w = excluded.base_w;
 
+-- 무늬 벽지·바닥, 도트 펫 (스티커 3~5개). 바닥 무늬는 화면에서 마름모 방향으로 눕혀 보여줘요.
+insert into public.room_items (id, name, emoji, color, slot, price, unlock_level, reward_level, category, img, base_w) values
+  ('wp_dot_pink', '분홍 땡땡이 벽지', '', 'radial-gradient(circle,#fff 0 2px,transparent 2.5px) 0 0/14px 14px,#ffd3e2', 'wallpaper', 3, 0, null, 'wallpaper', null, 12),
+  ('wp_lemon', '레몬 줄무늬 벽지', '', 'repeating-linear-gradient(90deg,#fff6c4 0 8px,#ffe98a 8px 16px)', 'wallpaper', 3, 0, null, 'wallpaper', null, 12),
+  ('wp_stripe_mint', '민트 줄무늬 벽지', '', 'repeating-linear-gradient(90deg,#d6f5e8 0 10px,#bdeed9 10px 20px)', 'wallpaper', 4, 0, null, 'wallpaper', null, 12),
+  ('wp_gingham', '딸기우유 체크 벽지', '', 'linear-gradient(90deg,rgba(255,255,255,.45) 50%,transparent 0) 0 0/18px 18px,linear-gradient(rgba(255,255,255,.45) 50%,transparent 0) 0 0/18px 18px,#ffbcd0', 'wallpaper', 4, 0, null, 'wallpaper', null, 12),
+  ('wp_lavender_dot', '라벤더 땡땡이 벽지', '', 'radial-gradient(circle,#fff 0 3px,transparent 3.5px) 0 0/20px 20px,radial-gradient(circle,#fff 0 3px,transparent 3.5px) 10px 10px/20px 20px,#d9ccf5', 'wallpaper', 4, 0, null, 'wallpaper', null, 12),
+  ('wp_cloud', '구름 벽지', '', 'radial-gradient(14px 7px at 50% 50%,#fff 98%,transparent 100%) 0 0/46px 34px,radial-gradient(9px 5px at 50% 50%,#fff 98%,transparent 100%) 23px 17px/46px 34px,#bfe2ff', 'wallpaper', 5, 1, null, 'wallpaper', null, 12),
+  ('wp_stars', '반짝별 벽지', '', 'radial-gradient(circle,#ffe27a 0 1.6px,transparent 2.2px) 0 0/24px 24px,radial-gradient(circle,#fff 0 1.2px,transparent 1.8px) 12px 12px/24px 24px,#9cc8f5', 'wallpaper', 5, 1, null, 'wallpaper', null, 12),
+  ('wp_wood', '나무 판자 벽', '', 'repeating-linear-gradient(90deg,#e7bf8c 0 22px,#d9ab72 22px 24px)', 'wallpaper', 5, 1, null, 'wallpaper', null, 12),
+  ('fl_tile_pink', '분홍 체크 타일', '', 'repeating-conic-gradient(#ffc9db 0 25%,#fff4f8 0 50%) 0 0/28px 28px', 'floor', 3, 0, null, 'floor', null, 12),
+  ('fl_tile_mint', '민트 체크 타일', '', 'repeating-conic-gradient(#bdeed9 0 25%,#f2fffa 0 50%) 0 0/28px 28px', 'floor', 3, 0, null, 'floor', null, 12),
+  ('fl_wood_dark', '원목 마루', '', 'repeating-linear-gradient(0deg,#b97f4f 0 16px,#9f6a40 16px 18px)', 'floor', 4, 0, null, 'floor', null, 12),
+  ('fl_birch', '자작나무 마루', '', 'repeating-linear-gradient(0deg,#f1dcb8 0 16px,#e2c799 16px 18px)', 'floor', 4, 0, null, 'floor', null, 12),
+  ('fl_tile_mono', '흑백 체크 타일', '', 'repeating-conic-gradient(#4a4d5e 0 25%,#f4f4f8 0 50%) 0 0/28px 28px', 'floor', 4, 1, null, 'floor', null, 12),
+  ('fl_carpet_sky', '하늘 땡땡이 카펫', '', 'radial-gradient(circle,#fff 0 3px,transparent 3.5px) 0 0/22px 22px,#a9d4ff', 'floor', 5, 1, null, 'floor', null, 12),
+  ('fl_tatami', '다다미', '', 'linear-gradient(90deg,#8aa560 2px,transparent 2px) 0 0/48px 48px,linear-gradient(#8aa560 2px,transparent 2px) 0 0/48px 48px,repeating-linear-gradient(90deg,#d3e2a6 0 3px,#c6d592 3px 6px)', 'floor', 5, 1, null, 'floor', null, 12),
+  ('fl_star_carpet', '밤하늘 카펫', '', 'radial-gradient(circle,#ffe27a 0 2px,transparent 2.6px) 0 0/26px 26px,radial-gradient(circle,#fff 0 1.3px,transparent 1.9px) 13px 13px/26px 26px,#3b4a82', 'floor', 5, 1, null, 'floor', null, 12),
+  ('pet_hamster', '햄스터', '', null, 'object', 3, 0, null, 'pet', 'assets/room/dot/pet_hamster.png?v=1', 9),
+  ('pet_chick', '병아리', '', null, 'object', 3, 0, null, 'pet', 'assets/room/dot/pet_chick.png?v=1', 9),
+  ('pet_turtle', '거북이', '', null, 'object', 3, 0, null, 'pet', 'assets/room/dot/pet_turtle.png?v=1', 9),
+  ('pet_dog', '갈색 강아지', '', null, 'object', 4, 0, null, 'pet', 'assets/room/dot/pet_dog.png?v=1', 9),
+  ('pet_cat', '치즈 고양이', '', null, 'object', 4, 0, null, 'pet', 'assets/room/dot/pet_cat.png?v=1', 9),
+  ('pet_blackcat', '까만 고양이', '', null, 'object', 4, 0, null, 'pet', 'assets/room/dot/pet_blackcat.png?v=1', 9),
+  ('pet_rabbit', '하얀 토끼', '', null, 'object', 4, 0, null, 'pet', 'assets/room/dot/pet_rabbit.png?v=1', 9),
+  ('pet_shiba', '시바견', '', null, 'object', 5, 0, null, 'pet', 'assets/room/dot/pet_shiba.png?v=1', 9),
+  ('pet_penguin', '펭귄', '', null, 'object', 5, 0, null, 'pet', 'assets/room/dot/pet_penguin.png?v=1', 9),
+  ('pet_panda', '아기 판다', '', null, 'object', 5, 0, null, 'pet', 'assets/room/dot/pet_panda.png?v=1', 9)
+on conflict (id) do update set
+  name = excluded.name, color = excluded.color, slot = excluded.slot, price = excluded.price, unlock_level = excluded.unlock_level,
+  category = excluded.category, img = excluded.img, base_w = excluded.base_w;
+
 -- 미니미: 방에 서는 캐릭터 아이템 하나. 생김새(머리·옷·모자 등)는 user_minimi에 따로 저장해요.
 insert into public.room_items (id, name, emoji, color, slot, price, unlock_level, reward_level, category, img, base_w) values
   ('minimi', '미니미', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi/preview.png?v=2', 12)

@@ -532,7 +532,7 @@ function roomScene(placedMap = data.room.placed, objects = data.room.objects, re
   const style = `--wall:${esc(wall?.color || '#fff4dc')};--floor:${esc(floor?.color || '#e8c9a0')}`;
   const objs = [...objects].sort((a, b) => a.z - b.z).map(obj => objectHtml(obj, readonly, zoom, look, say)).join('');
   const hint = !readonly && !objects.length ? '<p class="room-empty-hint">아래에서 아이템을 눌러 방에 놓아 보세요!</p>' : '';
-  return `<div class="room${readonly ? ' room-mini' : ''}${roomStyleClass()}" ${readonly ? '' : 'id="room-stage"'} style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${roomBackdrop()}${objs}${hint}</div>`;
+  return `<div class="room${readonly ? ' room-mini' : ''}${roomStyleClass()}${roomSurfaceClass(wall?.color, floor?.color)}" ${readonly ? '' : 'id="room-stage"'} style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${roomBackdrop()}${objs}${hint}</div>`;
 }
 function objectBar() {
   const obj = data.room.objects.find(o => o.id === state.selectedObj);

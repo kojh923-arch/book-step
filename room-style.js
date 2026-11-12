@@ -101,3 +101,9 @@ document.addEventListener('input', event => {   // 말풍선 글은 다시 그�
   const stage = document.querySelector('.mm-stage');
   if (stage) { stage.querySelector('.mm-bubble')?.remove(); stage.insertAdjacentHTML('afterbegin', minimiBubble(mmEditor.say)); }
 });
+
+// 단색 벽지·바닥에만 기본 줄무늬·마루 선을 얹어요 (무늬 벽지·바닥은 자기 무늬 그대로)
+function roomSurfaceClass(wallColor, floorColor) {
+  const plain = c => !c || /^#[0-9a-f]{3,8}$/i.test(String(c).trim());
+  return `${plain(wallColor) ? ' wall-plain' : ''}${plain(floorColor) ? ' floor-plain' : ''}`;
+}

@@ -644,8 +644,8 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .room-dot { border: 4px solid #3b2f2f; border-radius: 6px; box-shadow: 5px 5px 0 #3b2f2f; image-rendering: pixelated; }
 .room.room-dot { background: repeating-conic-gradient(#e9f5ff 0 25%, #dcefff 0 50%) 0 0 / 16px 16px; }
 .room-dot .cy-wall::after, .room-dot .cy-floor::after { content: ""; position: absolute; inset: 0; }
-.room-dot .cy-wall::after { background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .22) 0 6px, transparent 6px 14px); }
-.room-dot .cy-floor::after { background: repeating-linear-gradient(159.6deg, rgba(90, 55, 25, .16) 0 2px, transparent 2px 20px); }
+.room-dot.wall-plain .cy-wall::after { background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .22) 0 6px, transparent 6px 14px); }
+.room-dot.floor-plain .cy-floor::after { background: repeating-linear-gradient(159.6deg, rgba(90, 55, 25, .16) 0 2px, transparent 2px 20px); }
 .room-dot .room-obj img { filter: drop-shadow(3px 3px 0 rgba(60, 40, 20, .18)); }
 .room-dot .cy-lines { stroke: #3b2f2f; stroke-width: 2; }
 
@@ -700,3 +700,10 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .mm-card .minimi-stack.thumb { width: 54px; }
 .mm-stage .mm-bubble { top: 0; bottom: auto; transform: translateX(-50%); }
 .mm-preview .mm-quick button { width: auto; }
+
+/* 바닥 무늬를 마름모 바닥 방향(쿼터뷰)으로 눕혀서 깔아요: 정사각형을 45° 돌리고 세로로 눌러요 */
+.cy-floor { background: none; }
+.cy-floor::before { content: ""; position: absolute; left: 50%; top: 69%; width: 61.9%; aspect-ratio: 1; background: var(--floor); transform: translate(-50%, -50%) scaleY(.386) rotate(45deg); }
+@media (max-width: 520px) { .cy-floor::before { transform: translate(-50%, -50%) scaleY(.463) rotate(45deg); } }
+/* 도트 펫 */
+.room-obj img[src*="/pet_"], .shop-icon img[src*="/pet_"], .gift-icon img[src*="/pet_"] { image-rendering: pixelated; }
