@@ -33,14 +33,14 @@ function troomObjHtml(obj) {
   const item = troomItem(obj.item_id);
   if (!item?.img) return '';
   const handles = ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
-  return `<div class="room-obj${troom.selected === obj.id ? ' selected' : ''}" data-oid="${escapeHtml(obj.id)}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / TROOM_ZOOM}%;z-index:${10 + Number(obj.z || 0)}"><img src="${escapeHtml(item.img)}" alt="${escapeHtml(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
+  return `<div class="room-obj${troom.selected === obj.id ? ' selected' : ''}" data-oid="${escapeHtml(obj.id)}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / TROOM_ZOOM}%;z-index:${10 + Number(obj.z || 0)}"><img src="${escapeHtml(pixelSrc(item.img))}" data-px="${escapeHtml(item.img)}" alt="${escapeHtml(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
 }
 function troomScene() {
   const wall = troomCurrent('wallpaper'), floor = troomCurrent('floor');
   const style = `--wall:${escapeHtml(wall?.color || '#fff4dc')};--floor:${escapeHtml(floor?.color || '#e8c9a0')}`;
   const objs = [...troom.objects].sort((a, b) => a.z - b.z).map(troomObjHtml).join('');
   const hint = troom.objects.length ? '' : '<p class="room-empty-hint">아래에서 아이템을 눌러 방에 놓아 보세요!</p>';
-  return `<div class="room" id="troom-stage" style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${objs}${hint}</div>`;
+  return `<div class="room${roomStyleClass()}" id="troom-stage" style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${roomBackdrop()}${objs}${hint}</div>`;
 }
 function troomBar() {
   const obj = troom.objects.find(o => o.id === troom.selected);
@@ -64,7 +64,7 @@ function teacherRoomPanel() {
   const tabs = TROOM_TABS.map(([key, label]) => `<button class="slot-tab${troom.tab === key ? ' active' : ''}" data-action="troom-tab" data-tab="${key}">${label}</button>`).join('');
   const filter = furniture ? `<div class="slot-filter"><button class="chip${troom.cat ? '' : ' active'}" data-action="troom-cat" data-cat="">전체</button>${TROOM_CATS.map(([key, label]) => `<button class="chip${troom.cat === key ? ' active' : ''}" data-action="troom-cat" data-cat="${key}">${label}</button>`).join('')}</div>` : '';
   const visible = troom.items.filter(item => furniture ? item.slot === 'object' && item.category !== 'pet' && (!troom.cat || item.category === troom.cat) : item.slot === troom.tab);
-  return `${head}<p class="subtitle">선생님은 스티커 없이 모든 아이템을 마음껏 쓸 수 있어요. 우리 반 학생들이 ‘친구 방 구경’에서 선생님 방을 보고 따라 꾸밀 수 있어요.</p>${troomScene()}${troomBar()}<div class="slot-tabs">${tabs}</div>${filter}<div class="shop-grid">${visible.map(troomCard).join('') || '<div class="empty">아직 준비된 아이템이 없어요.</div>'}</div></section>`;
+  return `${head}<p class="subtitle">선생님은 스티커 없이 모든 아이템을 마음껏 쓸 수 있어요. 우리 반 학생들이 ‘친구 방 구경’에서 선생님 방을 보고 따라 꾸밀 수 있어요.</p>${roomStyleSwitcher('troom-style')}${troomScene()}${troomBar()}<div class="slot-tabs">${tabs}</div>${filter}<div class="shop-grid">${visible.map(troomCard).join('') || '<div class="empty">아직 준비된 아이템이 없어요.</div>'}</div></section>`;
 }
 
 // 끌어서 옮기기 · 모서리로 크기 조절
@@ -121,6 +121,7 @@ document.addEventListener('click', async event => {
   const el = event.target.closest('[data-action]');
   const action = el?.dataset.action;
   if (!action?.startsWith('troom-')) return;
+  if (action === 'troom-style') { setRoomStyle(el.dataset.style); keepScroll(render); return; }
   if (action === 'troom-tab') { troom.tab = el.dataset.tab; troom.cat = null; keepScroll(render); return; }
   if (action === 'troom-cat') { troom.cat = el.dataset.cat || null; keepScroll(render); return; }
   if (troom.busy || !sb) return;

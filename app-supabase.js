@@ -542,14 +542,14 @@ function objectHtml(obj, readonly, zoom = 1) {
   if (!item?.img) return '';
   const selected = !readonly && state.selectedObj === obj.id;
   const handles = readonly ? '' : ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
-  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / zoom}%;z-index:${10 + Number(obj.z || 0)}"><img src="${esc(item.img)}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
+  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / zoom}%;z-index:${10 + Number(obj.z || 0)}"><img src="${esc(pixelSrc(item.img))}" data-px="${esc(item.img)}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
 }
 function roomScene(placedMap = data.room.placed, objects = data.room.objects, readonly = false, zoom = 1) {
   const wall = roomPlaced('wallpaper', placedMap), floor = roomPlaced('floor', placedMap);
   const style = `--wall:${esc(wall?.color || '#fff4dc')};--floor:${esc(floor?.color || '#e8c9a0')}`;
   const objs = [...objects].sort((a, b) => a.z - b.z).map(obj => objectHtml(obj, readonly, zoom)).join('');
   const hint = !readonly && !objects.length ? '<p class="room-empty-hint">아래에서 아이템을 눌러 방에 놓아 보세요!</p>' : '';
-  return `<div class="room${readonly ? ' room-mini' : ''}" ${readonly ? '' : 'id="room-stage"'} style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${objs}${hint}</div>`;
+  return `<div class="room${readonly ? ' room-mini' : ''}${roomStyleClass()}" ${readonly ? '' : 'id="room-stage"'} style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${roomBackdrop()}${objs}${hint}</div>`;
 }
 function objectBar() {
   const obj = data.room.objects.find(o => o.id === state.selectedObj);
@@ -598,7 +598,7 @@ function friendsPanel() {
 function roomView() {
   const head = `<section class="page-title"><div><p class="eyebrow">MY ROOM</p><h1>내 방 꾸미기</h1><p class="subtitle">책을 읽고 받은 스티커로 방을 꾸며 보세요. 책 1권을 기록하면 스티커 1개를 받아요.</p></div><span class="sticker-wallet">⭐ 사용 가능 ${data.room?.ready ? stickersAvailable() : 0}개</span></section>`;
   if (!data.room?.ready) return layout(`${head}<section class="panel"><div class="empty">내 방을 불러오지 못했어요.<br>선생님께 문의해 주세요. (supabase-room.sql 실행 필요)</div></section>`, 'room');
-  const modes = `<div class="room-modes"><button class="slot-tab${state.roomMode === 'mine' ? ' active' : ''}" data-action="room-mode" data-mode="mine">🏠 내 방</button><button class="slot-tab${state.roomMode === 'friends' ? ' active' : ''}" data-action="room-mode" data-mode="friends">👫 친구 방 구경</button></div>`;
+  const modes = `${roomStyleSwitcher('room-style')}<div class="room-modes"><button class="slot-tab${state.roomMode === 'mine' ? ' active' : ''}" data-action="room-mode" data-mode="mine">🏠 내 방</button><button class="slot-tab${state.roomMode === 'friends' ? ' active' : ''}" data-action="room-mode" data-mode="friends">👫 친구 방 구경</button></div>`;
   if (state.roomMode === 'friends') return layout(`${head}${modes}${friendsPanel()}`, 'room');
   const lv = LEVELS.indexOf(level());
   const tabs = ROOM_TABS.map(([key, label]) => `<button class="slot-tab${state.roomTab === key ? ' active' : ''}" data-action="room-tab" data-tab="${key}">${label}</button>`).join('');
@@ -671,7 +671,8 @@ document.addEventListener('pointercancel', endDrag);
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
   const action = el?.dataset.action;
-  if (!['room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
+  if (!['room-style', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
+  if (action === 'room-style') { setRoomStyle(el.dataset.style); render(); return; }
   if (action === 'room-tab') { state.roomTab = el.dataset.tab; state.roomCat = null; render(); return; }
   if (action === 'room-filter') { state.roomCat = el.dataset.cat || null; render(); return; }
   if (action === 'room-mode') {
