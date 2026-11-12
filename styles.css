@@ -506,7 +506,7 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 
 /* 내 방 꾸미기 */
 .sticker-wallet { align-self: center; background: var(--yellow); color: var(--ink); font-weight: 900; border-radius: 999px; padding: 10px 16px; white-space: nowrap; }
-.room { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; width: 100%; max-width: 720px; margin: 0 auto 22px; border-radius: 24px; overflow: hidden; border: 3px solid #fff; box-shadow: var(--shadow); background: var(--wall); }
+.room { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; width: 100%; max-width: 900px; margin: 0 auto 22px; border-radius: 24px; overflow: hidden; border: 3px solid #fff; box-shadow: var(--shadow); background: var(--wall); }
 .room-wall, .room-floor { position: absolute; left: 0; right: 0; border: 0; padding: 0; cursor: pointer; }
 .room-wall { top: 0; height: 58%; background: var(--wall); }
 .room-floor { bottom: 0; height: 42%; background: var(--floor); border-top: 6px solid rgba(0, 0, 0, .08); }
@@ -567,7 +567,7 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .h-nw { left: -13px; top: -13px; cursor: nwse-resize; } .h-ne { right: -13px; top: -13px; cursor: nesw-resize; }
 .h-sw { left: -13px; bottom: -13px; cursor: nesw-resize; } .h-se { right: -13px; bottom: -13px; cursor: nwse-resize; }
 .room-empty-hint { position: absolute; left: 0; right: 0; bottom: 14%; margin: 0; text-align: center; font-weight: 800; font-size: clamp(12px, 2.6cqw, 18px); color: rgba(24, 55, 91, .5); pointer-events: none; }
-.obj-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 720px; margin: -8px auto 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 16px; font-size: 13px; }
+.obj-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 900px; margin: -8px auto 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 16px; font-size: 13px; }
 .obj-bar.active { border-color: var(--orange); background: #fff9f0; }
 .obj-bar .secondary-button { padding: 8px 12px; font-size: 13px; }
 .obj-bar .danger { color: #c2410c; }

@@ -140,6 +140,23 @@ on conflict (id) do update set
   unlock_level = excluded.unlock_level, reward_level = excluded.reward_level, category = excluded.category,
   img = excluded.img, base_w = excluded.base_w;
 
+-- 미니미 (싸이월드풍 도트 캐릭터). 모두 무료이고 방에 하나만 세워요. 그림: scripts/cyroom_minimi.py
+insert into public.room_items (id, name, emoji, color, slot, price, unlock_level, reward_level, category, img, base_w) values
+  ('minimi_reader', '책 읽는 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_reader.png?v=1', 7),
+  ('minimi_ribbon', '리본 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_ribbon.png?v=1', 7),
+  ('minimi_pigtail', '양갈래 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_pigtail.png?v=1', 7),
+  ('minimi_student', '교복 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_student.png?v=1', 7),
+  ('minimi_cap', '모자 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_cap.png?v=1', 7),
+  ('minimi_bear', '곰돌이 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_bear.png?v=1', 7),
+  ('minimi_cat', '고양이 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_cat.png?v=1', 7),
+  ('minimi_curly', '곱슬머리 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_curly.png?v=1', 7),
+  ('minimi_spiky', '뾰족머리 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_spiky.png?v=1', 7),
+  ('minimi_wizard', '마법사 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_wizard.png?v=1', 7),
+  ('minimi_king', '독서왕', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_king.png?v=1', 7),
+  ('minimi_teacher', '선생님', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_teacher.png?v=1', 7)
+on conflict (id) do update set
+  name = excluded.name, category = excluded.category, img = excluded.img, base_w = excluded.base_w;
+
 -- 책 권수 → 레벨 번호 (앱의 LEVELS와 같은 기준: 0,5,10,20,40,60,80,100,130,160,200권)
 create or replace function public.room_level(p_books int)
 returns int
