@@ -9,6 +9,7 @@
 | `index.html` + `app-supabase.js` | 학생용 앱 (기록, 저장 내역, 내 책장, 성장 현황, 내 방) |
 | `teacher.html` + `teacher-dashboard.js` + `teacher-room.js` | 교사용 대시보드 (학생 관리, 칭찬 도장, 챌린지, 교사 방) |
 | `supabase-config.js` | Supabase URL / publishable(anon) key — 공개 키만 넣습니다 |
+| `styles.css` + `icons.js` | 디자인(토큰·부품·화면별 스타일)과 아이콘·성장 캐릭터 그림 |
 | `assets/` | 로고, 방 아이템 일러스트 |
 
 ## 배포

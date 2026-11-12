@@ -59,7 +59,7 @@ function adminScreen() {
   } else {
     body = `<section class="panel"><h2>${cl.grade}학년 ${cl.class_no}반 학생 (담임 ${adminEsc(cl.teacher_nickname || '-')})</h2>${adminTable(['학생', '기록', '최근 읽은 날', '가입일'], adminStudentRows(adminState.students), '학생이 없어요.')}</section>`;
   }
-  return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>슈퍼 관리자 · 읽기 전용</small></div></div><div class="topbar-actions"><button class="ghost-button" data-admin="logout">로그아웃</button></div></header>
+  return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/logo.svg" alt="독서한걸음 로고" /></span><div>독서한걸음<small>슈퍼 관리자 · 읽기 전용</small></div></div><div class="topbar-actions"><button class="ghost-button" data-admin="logout">로그아웃</button></div></header>
     <section class="admin-stats">${adminStat('학교', s.schools)}${adminStat('교사', s.teachers)}${adminStat('학급', s.classes)}${adminStat('학생', s.students)}${adminStat('독서 기록', s.records)}</section>
     ${crumbs}<div class="error">${adminEsc(adminState.error)}</div>${body}${adminStudentModal()}</div></div>`;
 }

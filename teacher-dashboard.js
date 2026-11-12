@@ -104,7 +104,7 @@ async function loadDashboard() {
 }
 
 function loginScreen() {
-  return `<div class="auth-wrap"><div class="auth-card"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>교사용 학급 대시보드</small></div></div>
+  return `<div class="auth-wrap"><div class="auth-card"><div class="brand"><span class="brand-mark"><img src="assets/logo.svg" alt="독서한걸음 로고" /></span><div>독서한걸음<small>교사용 학급 대시보드</small></div></div>
     <p class="eyebrow">TEACHER SPACE</p><h1>${mode === 'signup' ? '교사 계정을 만들어요' : '학급 기록을 확인해요'}</h1>
     <p class="subtitle">학생의 독서 기록과 미션 답변을 한곳에서 확인할 수 있어요.</p>
     <div class="auth-toggle"><button class="${mode === 'login' ? 'active' : ''}" data-mode="login">로그인</button><button class="${mode === 'signup' ? 'active' : ''}" data-mode="signup">첫 교사 계정 만들기</button></div>
@@ -135,7 +135,7 @@ function dashboardScreen() {
   const completedStudents = new Set(records.map(record => record.user_id)).size;
   const latest = records.slice(0, 5);
   const rows = studentRows();
-  return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${teacherTitle()}</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
+  return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/logo.svg" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${teacherTitle()}</small></div></div><div class="topbar-actions"><a class="ghost-button" href="index.html">학생 화면</a><button class="ghost-button" data-action="logout">로그아웃</button></div></header>
   <section class="page-title"><div><p class="eyebrow">CLASS READING DASHBOARD</p><h1>우리 반 독서 현황</h1><p class="subtitle">학생별 독서 기록과 미션 답변을 한눈에 확인해요.</p>${classChips()}</div><button class="secondary-button" data-action="refresh">새로고침</button></section>
   ${selectedStudentId ? '' : flashBanner()}${collapsible('classes', classPanel(), !classes.length)}${collapsible('bulk', bulkPanel())}${collapsible('challenge', challengePanel())}${collapsible('room', teacherRoomPanel())}
   <section class="stats"><div class="stat"><div class="stat-label">등록 학생</div><div class="stat-value">${students.length}명</div><div class="stat-note">현재 학생 계정 기준</div></div><div class="stat"><div class="stat-label">이번 달 독서</div><div class="stat-value">${thisMonth}권</div><div class="stat-note">${monthKey.replace('-', '년 ')}월 기록</div></div><div class="stat"><div class="stat-label">전체 미션 완료</div><div class="stat-value">${records.length}회</div><div class="stat-note">저장된 독서 기록 수</div></div><div class="stat"><div class="stat-label">기록한 학생</div><div class="stat-value">${completedStudents}명</div><div class="stat-note">한 권 이상 기록</div></div></section>
