@@ -62,6 +62,7 @@ create table if not exists public.room_objects (
   created_at timestamptz not null default now()
 );
 create index if not exists room_objects_user_idx on public.room_objects (user_id);
+alter table public.room_objects add column if not exists back boolean not null default false;   -- 뒷모습(돌리기)
 
 alter table public.room_items enable row level security;
 alter table public.user_items enable row level security;
@@ -381,6 +382,18 @@ as $$
 $$;
 grant execute on function public.update_object(uuid, numeric, numeric, numeric, boolean) to authenticated;
 
+-- 돌리기: 좌우 반전 + 뒷모습으로 네 방향을 만들어요
+create or replace function public.turn_object(p_id uuid, p_flip boolean, p_back boolean)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.room_objects set flip = p_flip, back = p_back where id = p_id and user_id = auth.uid();
+$$;
+revoke execute on function public.turn_object(uuid, boolean, boolean) from public, anon;
+grant execute on function public.turn_object(uuid, boolean, boolean) to authenticated;
+
 -- 맨 앞으로 가져오기
 create or replace function public.front_object(p_id uuid)
 returns void
@@ -418,7 +431,7 @@ as $$
   select p.id, p.nickname,
          (p.role = 'teacher'),
          coalesce((select jsonb_object_agg(ur.slot, ur.item_id) from public.user_room ur where ur.user_id = p.id), '{}'::jsonb),
-         coalesce((select jsonb_agg(jsonb_build_object('item_id', o.item_id, 'x', o.x, 'y', o.y, 'scale', o.scale, 'flip', o.flip, 'z', o.z) order by o.z)
+         coalesce((select jsonb_agg(jsonb_build_object('item_id', o.item_id, 'x', o.x, 'y', o.y, 'scale', o.scale, 'flip', o.flip, 'back', o.back, 'z', o.z) order by o.z)
                    from public.room_objects o where o.user_id = p.id), '[]'::jsonb),
          (select um.look from public.user_minimi um where um.user_id = p.id),
          (select um.bubble from public.user_minimi um where um.user_id = p.id)

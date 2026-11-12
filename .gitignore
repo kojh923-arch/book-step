@@ -3,3 +3,4 @@ outputs/
 *.zip
 
 .claude/neis.key
+scripts/__pycache__/

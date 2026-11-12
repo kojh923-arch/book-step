@@ -488,7 +488,7 @@ async function loadRoom() {
     sb.from('room_items').select('*').order('price').order('id'),
     sb.from('user_items').select('item_id'),
     sb.from('user_room').select('slot,item_id'),
-    sb.from('room_objects').select('id,item_id,x,y,scale,flip,z').order('z')
+    sb.from('room_objects').select('id,item_id,x,y,scale,flip,back,z').order('z')
   ]);
   if (items.error || owned.error || placed.error || objects.error) return;
   const [mini, counts, guest] = await Promise.all([   // 미니미·방문자 수·방명록 (없어도 방은 열려요)
@@ -529,7 +529,7 @@ function objectHtml(obj, readonly, zoom = 1, look = null, say = '') {
   if (!item?.img) return '';
   const selected = !readonly && state.selectedObj === obj.id;
   const handles = readonly ? '' : ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
-  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / zoom}%;z-index:${10 + Number(obj.z || 0)}">${item.category === MINIMI_CATEGORY ? minimiBubble(say) + minimiStack(look, '', obj.flip) : `<img src="${esc(pixelSrc(item.img))}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />`}${handles}</div>`;
+  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / zoom}%;z-index:${10 + Number(obj.z || 0)}">${item.category === MINIMI_CATEGORY ? minimiBubble(say) + minimiStack(look, '', obj.flip) : `<img src="${esc(pixelSrc(item.img, obj.back))}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />`}${handles}</div>`;
 }
 function roomScene(placedMap = data.room.placed, objects = data.room.objects, readonly = false, zoom = ROOM_ZOOM, look = data.room?.minimi, say = data.room?.minimiSay) {
   const wall = roomPlaced('wallpaper', placedMap), floor = roomPlaced('floor', placedMap);
@@ -543,7 +543,7 @@ function objectBar() {
   const count = `<small class="obj-count">방에 놓은 아이템 ${data.room.objects.length}/${ROOM_MAX_OBJECTS}</small>`;
   if (!obj) return `<div class="obj-bar" id="obj-bar"><span class="obj-hint">아이템을 눌러 선택하고, 끌어서 옮기고, 모서리를 끌어 크기를 바꿔요.</span>${count}</div>`;
   const item = roomItemById(obj.item_id);
-  return `<div class="obj-bar active" id="obj-bar"><strong>${esc(item?.name || '')}</strong><button class="secondary-button" data-action="flip-obj">↔ 반전</button><button class="secondary-button" data-action="front-obj">⬆ 앞으로</button><button class="secondary-button danger" data-action="remove-obj">🗑 빼기</button>${count}</div>`;
+  return `<div class="obj-bar active" id="obj-bar"><strong>${esc(item?.name || '')}</strong>${roomCanTurn(item) ? '<button class="secondary-button" data-action="turn-obj">🔄 돌리기</button>' : '<button class="secondary-button" data-action="flip-obj">↔ 반전</button>'}<button class="secondary-button" data-action="front-obj">⬆ 앞으로</button><button class="secondary-button danger" data-action="remove-obj">🗑 빼기</button>${count}</div>`;
 }
 function roomItemCard(item) {
   const lv = LEVELS.indexOf(level());
@@ -669,6 +669,10 @@ async function endDrag(e) {
   const d = roomDrag;
   if (!d || e.pointerId !== d.id) return;
   roomDrag = null;
+  if (d.moved && d.mode === 'move') {   // 벽 가까이 놓으면 벽에 딱 붙여요
+    const snap = roomSnap(d.obj, roomItemById(d.obj.item_id), ROOM_ZOOM);
+    if (snap) { d.obj.x = snap.x; d.obj.y = snap.y; d.el.style.left = snap.x + '%'; d.el.style.top = snap.y + '%'; }
+  }
   if (d.moved) await saveObject(d.obj);
 }
 document.addEventListener('pointerup', endDrag);
@@ -677,7 +681,7 @@ document.addEventListener('pointercancel', endDrag);
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
   const action = el?.dataset.action;
-  if (!['visit-room', 'visit-back', 'gb-send', 'gb-del', 'mm-save', 'room-style', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
+  if (!['visit-room', 'visit-back', 'gb-send', 'gb-del', 'turn-obj', 'mm-save', 'room-style', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
   if (action === 'room-style') { setRoomStyle(el.dataset.style); render(); return; }
   if (action === 'room-tab') { state.roomTab = el.dataset.tab; state.roomCat = null; render(); return; }
   if (action === 'room-filter') { state.roomCat = el.dataset.cat || null; render(); return; }
@@ -709,6 +713,10 @@ document.addEventListener('click', async e => {
         state.selectedObj = newId;
       }
       await loadRoom();
+    } else if (action === 'turn-obj' && obj) {   // 네 방향 돌리기 (앞·뒤 × 좌우)
+      const [flip, back] = nextTurn(obj);
+      const { error } = await sb.rpc('turn_object', { p_id: obj.id, p_flip: flip, p_back: back }); if (error) throw error;
+      obj.flip = flip; obj.back = back;
     } else if (action === 'flip-obj' && obj) {
       obj.flip = !obj.flip;
       const img = document.querySelector(`.room-obj[data-oid="${obj.id}"] > :first-child`);

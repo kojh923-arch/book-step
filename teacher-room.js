@@ -13,7 +13,7 @@ async function loadTeacherRoom() {
   const [items, placed, objects] = await Promise.all([
     sb.from('room_items').select('*').order('price').order('id'),
     sb.from('user_room').select('slot,item_id'),
-    sb.from('room_objects').select('id,item_id,x,y,scale,flip,z').order('z')
+    sb.from('room_objects').select('id,item_id,x,y,scale,flip,back,z').order('z')
   ]);
   if (items.error || placed.error || objects.error) return;
   troom.items = items.data || [];
@@ -38,7 +38,7 @@ function troomObjHtml(obj) {
   const item = troomItem(obj.item_id);
   if (!item?.img) return '';
   const handles = ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
-  return `<div class="room-obj${troom.selected === obj.id ? ' selected' : ''}" data-oid="${escapeHtml(obj.id)}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / TROOM_ZOOM}%;z-index:${10 + Number(obj.z || 0)}">${item.category === MINIMI_CATEGORY ? minimiBubble(troom.minimiSay) + minimiStack(troom.minimi, '', obj.flip) : `<img src="${escapeHtml(pixelSrc(item.img))}" alt="${escapeHtml(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />`}${handles}</div>`;
+  return `<div class="room-obj${troom.selected === obj.id ? ' selected' : ''}" data-oid="${escapeHtml(obj.id)}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / TROOM_ZOOM}%;z-index:${10 + Number(obj.z || 0)}">${item.category === MINIMI_CATEGORY ? minimiBubble(troom.minimiSay) + minimiStack(troom.minimi, '', obj.flip) : `<img src="${escapeHtml(pixelSrc(item.img, obj.back))}" alt="${escapeHtml(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />`}${handles}</div>`;
 }
 function troomScene() {
   const wall = troomCurrent('wallpaper'), floor = troomCurrent('floor');
@@ -51,7 +51,7 @@ function troomBar() {
   const obj = troom.objects.find(o => o.id === troom.selected);
   const count = `<small class="obj-count">방에 놓은 아이템 ${troom.objects.length}/${TROOM_MAX}</small>`;
   if (!obj) return `<div class="obj-bar" id="troom-bar"><span class="obj-hint">아이템을 눌러 선택하고, 끌어서 옮기고, 모서리를 끌어 크기를 바꿔요.</span>${count}</div>`;
-  return `<div class="obj-bar active" id="troom-bar"><strong>${escapeHtml(troomItem(obj.item_id)?.name || '')}</strong><button class="secondary-button" data-action="troom-flip">↔ 반전</button><button class="secondary-button" data-action="troom-front">⬆ 앞으로</button><button class="secondary-button danger" data-action="troom-remove">🗑 빼기</button>${count}</div>`;
+  return `<div class="obj-bar active" id="troom-bar"><strong>${escapeHtml(troomItem(obj.item_id)?.name || '')}</strong>${roomCanTurn(troomItem(obj.item_id)) ? '<button class="secondary-button" data-action="troom-turn">🔄 돌리기</button>' : '<button class="secondary-button" data-action="troom-flip">↔ 반전</button>'}<button class="secondary-button" data-action="troom-front">⬆ 앞으로</button><button class="secondary-button danger" data-action="troom-remove">🗑 빼기</button>${count}</div>`;
 }
 function troomCard(item) {
   if (item.slot === 'object') {
@@ -118,6 +118,10 @@ async function troomEndDrag(event) {
   const d = troom.drag;
   if (!d || event.pointerId !== d.id) return;
   troom.drag = null;
+  if (d.moved && d.mode === 'move') {   // 벽 가까이 놓으면 벽에 딱 붙여요
+    const snap = roomSnap(d.obj, troomItem(d.obj.item_id), TROOM_ZOOM);
+    if (snap) { d.obj.x = snap.x; d.obj.y = snap.y; d.el.style.left = snap.x + '%'; d.el.style.top = snap.y + '%'; }
+  }
   if (d.moved) await troomSave(d.obj);
 }
 document.addEventListener('pointerup', troomEndDrag);
@@ -143,6 +147,10 @@ document.addEventListener('click', async event => {
         troom.selected = newId;
       }
       await loadTeacherRoom();
+    } else if (action === 'troom-turn' && obj) {
+      const [flip, back] = nextTurn(obj);
+      const { error } = await sb.rpc('turn_object', { p_id: obj.id, p_flip: flip, p_back: back }); if (error) throw error;
+      obj.flip = flip; obj.back = back;
     } else if (action === 'troom-flip' && obj) {
       obj.flip = !obj.flip;
       const img = document.querySelector(`#troom-stage .room-obj[data-oid="${obj.id}"] > :first-child`);

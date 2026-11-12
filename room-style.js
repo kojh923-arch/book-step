@@ -14,11 +14,12 @@ function roomStyleSwitcher(action) {
   const now = getRoomStyle();
   return `<div class="room-style-switch" role="group" aria-label="방 모양">${ROOM_STYLES.map(([key, label]) => `<button type="button" class="chip${now === key ? ' active' : ''}" data-action="${action}" data-style="${key}">${label}</button>`).join('')}</div>`;
 }
-// 벽 두 면 + 마름모 바닥. 160×100 좌표 기준: 바닥 꼭짓점 (80,42) (150,68) (80,96) (10,68), 벽 높이 36
+// 벽 두 면 + 마름모 바닥. 160×100 좌표 기준: 바닥 꼭짓점 (80,42) (150,69) (80,96) (10,69), 벽 높이 36
+// 방 비율(875:708)과 함께 바닥이 정확한 2:1 쿼터뷰가 되어 아이템 그림의 기울기와 맞아요.
 function roomBackdrop() {
   if (getRoomStyle() === 'basic') return '';
   return '<div class="cy-wall cy-wall-l"></div><div class="cy-wall cy-wall-r"></div><div class="cy-floor"></div>'
-    + '<svg class="cy-lines" viewBox="0 0 160 100" preserveAspectRatio="none" aria-hidden="true"><polygon points="80,42 150,68 80,96 10,68"/><polyline points="10,68 10,32 80,6 150,32 150,68"/><line x1="80" y1="42" x2="80" y2="6"/></svg>';
+    + '<svg class="cy-lines" viewBox="0 0 160 100" preserveAspectRatio="none" aria-hidden="true"><polygon points="80,42 150,69 80,96 10,69"/><polyline points="10,69 10,33 80,6 150,33 150,69"/><line x1="80" y1="42" x2="80" y2="6"/></svg>';
 }
 
 // 도트 모드: 싸이월드풍으로 새로 그린 도트 그림(assets/room/dot/, scripts/cyroom_items.py로 생성)으로 바꿔 보여줘요. DB의 그림 경로는 그대로예요.
@@ -27,10 +28,45 @@ const DOT_ITEMS = new Set(['acoustic_guitar', 'air_purifier', 'blanket_basket', 
 const MINIMI_CATEGORY = 'minimi';
 const ROOM_ZOOM = 1.4;   // 방을 1.4배 넓게 (최대 1008px = 720px × 1.4). 아이템 크기 그대로, 놓을 자리만 늘어나요
 const roomZoomFor = () => ROOM_ZOOM;   // 학생 방·선생님 방 같은 크기
-function pixelSrc(src) {
+function pixelSrc(src, back = false) {
   if (getRoomStyle() !== 'dot' || !src) return src;
   const m = /^assets\/room\/([a-z0-9_]+)\.png/.exec(src);
-  return m && DOT_ITEMS.has(m[1]) ? `assets/room/dot/${m[1]}.png?v=3` : src;
+  if (!m || !DOT_ITEMS.has(m[1])) return src;
+  return back && roomCanTurnId(m[1]) ? `assets/room/dot/${m[1]}_back.png?v=1` : `assets/room/dot/${m[1]}.png?v=3`;
+}
+
+// ---------- 돌리기(네 방향)와 벽에 딱 붙이기 ----------
+// 방향이 있는 아이템(의자·책상 등)은 앞모습/뒷모습 × 좌우 반전으로 네 방향을 돌려요. 그림 정보: room-dot-data.js
+const RD = window.ROOM_DOT || { back: [], wall: [], anchors: {} };
+const ROOM_H = 708 / 875;   // 방 세로/가로 비율 (styles.css의 aspect-ratio와 같아요)
+const TURN_STEPS = [[false, false], [true, false], [false, true], [true, true]];
+const roomItemKey = item => /^assets\/room\/([a-z0-9_]+)\.png/.exec(item?.img || '')?.[1] || null;
+function roomCanTurnId(id) { return RD.back.includes(id); }
+const roomCanTurn = item => roomCanTurnId(roomItemKey(item));
+function nextTurn(obj) {
+  const i = TURN_STEPS.findIndex(([f, b]) => f === Boolean(obj.flip) && b === Boolean(obj.back));
+  return TURN_STEPS[(i + 1) % TURN_STEPS.length];
+}
+// 아이템의 뒤쪽 바닥 모서리가 벽선 가까이(방 폭의 3.5% 안) 오면 벽에 딱 붙여요. 붙일 곳이 없으면 null
+function roomSnap(obj, item, zoom) {
+  const id = roomItemKey(item);
+  if (!id || RD.wall.includes(id) || item.category === 'wall') return null;
+  const an = RD.anchors[obj.back && roomCanTurnId(id) ? `${id}_back` : id];
+  if (!an) return null;
+  const [fx0, fy, aspect] = an, fx = obj.flip ? 1 - fx0 : fx0;
+  const w = item.base_w * obj.scale / zoom / 100, h = w * aspect;
+  const cx = obj.x / 100, cy = obj.y / 100 * ROOM_H;
+  const ax = cx - w / 2 + fx * w, ay = cy - h / 2 + fy * h, top = .42 * ROOM_H, near = .035;
+  const tl = top + .25 - .5 * ax - ay;   // 왼쪽 벽까지 (오른쪽 아래 방향으로 밀기)
+  const tr = top - .25 + .5 * ax - ay;   // 오른쪽 벽까지 (왼쪽 아래 방향으로 밀기)
+  const onLeft = ax > .04 && ax < .52 && Math.abs(tl) < near, onRight = ax > .48 && ax < .96 && Math.abs(tr) < near;
+  let dx = 0, dy = 0;
+  if (onLeft && onRight) { dx = .5 - ax; dy = top - ay; }
+  else if (onLeft) { dx = tl; dy = tl * .5; }
+  else if (onRight) { dx = -tr; dy = tr * .5; }
+  else return null;
+  const clamp = v => Math.min(100, Math.max(0, v));
+  return { x: clamp((cx + dx) * 100), y: clamp((cy + dy) / ROOM_H * 100) };
 }
 
 // ---------- 미니미 옷 입히기 ----------
