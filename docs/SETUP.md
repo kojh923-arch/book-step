@@ -11,13 +11,17 @@ Supabase SQL Editor에서 아래 순서로 한 번씩 실행합니다. 모두 �
 6. `supabase-feedback.sql` — 교사 도장·한마디
 7. `supabase-wishlist.sql` — 읽고 싶은 책 (순서 무관, 1 다음이면 가능)
 8. `supabase-room.sql` — 방 꾸미기
-9. `supabase-hardening.sql` — 보안 강화
-10. `supabase-admin.sql` — 슈퍼 관리자 (**항상 마지막**, 아래 4번 참고)
+9. `supabase-buddy.sql` — 새싹 캐릭터 이름·화분 색, 친구 독서 기록 응원 (새 표 2개와 함수만 추가, 기존 표는 읽기만)
+10. `supabase-hardening.sql` — 보안 강화
+11. `supabase-admin.sql` — 슈퍼 관리자 (**항상 마지막**, 아래 4번 참고)
 
 > ⚠️ 이미 운영 중인 DB에서는 **바뀐 파일만** 실행하세요. 특히 `supabase-room.sql`은 최근
 > (`classmate_rooms` 접근 제한) 수정되었으므로, 운영 DB 반영 여부를 확인하고 실행 후
 > `supabase-hardening.sql`을 다시 실행하는 것이 안전합니다.
 > 실행 전 Dashboard → Database → Backups에서 백업을 확인하세요.
+
+> `supabase-buddy.sql`을 아직 실행하지 않은 운영 DB에서도 앱은 그대로 동작합니다. 캐릭터 이름·화분 색은 그 기기에만 저장되고,
+> 홈의 "우리 반 독서 소식"(응원)은 숨겨집니다. 실행하면 계정에 저장되고 응원 기능이 켜집니다.
 
 ## 2. Edge Function (`supabase/functions/`)
 코드를 저장소에 올려도 **자동 배포되지 않습니다.** Dashboard → Edge Functions에서 직접 배포합니다.
@@ -33,6 +37,7 @@ Supabase SQL Editor에서 아래 순서로 한 번씩 실행합니다. 모두 �
 - [ ] 학생 로그인 → 책 검색 → 기록 저장 → 스티커 증가
 - [ ] 내 방에서 아이템 구매·배치, 새로고침 후 유지
 - [ ] 교사 로그인 → 학생 목록, 칭찬 도장 → 학생 화면에 표시
+- [ ] (supabase-buddy.sql 실행 후) 성장 현황에서 새싹 이름·화분 색 저장, 홈 "우리 반 독서 소식"에서 친구 기록에 응원 → 친구의 저장 내역에 표시
 - [ ] 로그인하지 않은 상태에서 테이블 직접 조회가 막히는지 (anon 권한)
 - [ ] 기존 학생·교사 데이터(기록 수, 도장)가 그대로인지
 

@@ -47,3 +47,15 @@ test('esc / shortDate / localDateString', () => {
   assert.equal(c.shortDate('2026-03-05T10:00:00'), '3/5');
   assert.equal(c.localDateString(new Date(2026, 0, 9)), '2026-01-09');
 });
+
+test('buddyLineFor: 상황에 맞는 말을 먼저 고르고, 같은 날에는 같은 말', () => {
+  assert.match(c.buddyLineFor({ total: 0, seed: 0 }), /첫 책/);
+  assert.equal(c.buddyLineFor({ total: 3, unseenFeedback: 2, seed: 0 }), '선생님 칭찬이 2개 도착했어요!');
+  assert.equal(c.buddyLineFor({ total: 3, challenge: { title: 'x', daysLeft: 0 }, seed: 0 }), '우리 반 챌린지가 오늘 마감이에요!');
+  assert.equal(c.buddyLineFor({ total: 9, toNextLevel: 1, seed: 0 }), '1권만 더 읽으면 레벨 업이에요!');
+  assert.equal(c.buddyLineFor({ total: 9, streak: 2, thisWeekDone: false, seed: 0 }), '2주 연속 기록, 이번 주에 한 권이면 이어져요!');
+  const ctx = { total: 9, weekday: 1, seed: 7 };
+  assert.equal(c.buddyLineFor(ctx), c.buddyLineFor(ctx));
+  assert.equal(typeof c.buddyLineFor({ total: 9, weekday: 6, seed: 123 }), 'string');
+  assert.notEqual(c.buddyLineFor({ total: 9, weekday: 1, seed: 0 }), c.buddyLineFor({ total: 9, weekday: 1, seed: 1 }));
+});

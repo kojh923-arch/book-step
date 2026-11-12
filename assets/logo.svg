@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="독서한걸음">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b3a4ff"/>
+      <stop offset=".55" stop-color="#93b4ff"/>
+      <stop offset="1" stop-color="#8fdcd0"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b6f2c4"/>
+      <stop offset="1" stop-color="#6fd69a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="124" fill="url(#bg)"/>
+  <circle cx="92" cy="96" r="120" fill="#fff" opacity=".14"/>
+  <circle cx="452" cy="452" r="130" fill="#fff" opacity=".12"/>
+  <!-- 디딤돌(한 걸음씩) + 별 -->
+  <ellipse cx="292" cy="186" rx="50" ry="19" fill="#fff" opacity=".55" transform="rotate(-8 292 186)"/>
+  <ellipse cx="350" cy="136" rx="34" ry="13" fill="#fff" opacity=".7" transform="rotate(-8 350 136)"/>
+  <path d="M398 62c5 22 12 29 34 34-22 5-29 12-34 34-5-22-12-29-34-34 22-5 29-12 34-34z" fill="#ffe27a"/>
+  <!-- 펼친 책 -->
+  <path d="M72 330c0-9 7-16 16-16h60c48 0 86 14 108 44 22-30 60-44 108-44h60c9 0 16 7 16 16v62c0 9-7 16-16 16H88c-9 0-16-7-16-16z" fill="#6a5fe0" opacity=".55"/>
+  <path d="M96 292c60-8 122 6 160 60V396c-38-40-100-50-160-44z" fill="#fff"/>
+  <path d="M416 292c-60-8-122 6-160 60V396c38-40 100-50 160-44z" fill="#f3f0ff"/>
+  <!-- 새싹 -->
+  <path d="M256 356V250" stroke="#4fbf86" stroke-width="16" stroke-linecap="round"/>
+  <path d="M256 262c-6-58-46-84-104-80 0 56 40 88 104 80z" fill="url(#leaf)"/>
+  <path d="M256 262c6-58 46-84 104-80 0 56-40 88-104 80z" fill="url(#leaf)"/>
+  <path d="M244 250c-18-26-42-40-70-46M268 250c18-26 42-40 70-46" stroke="#4fbf86" stroke-width="8" stroke-linecap="round" fill="none" opacity=".7"/>
+</svg>
