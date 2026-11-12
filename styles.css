@@ -506,7 +506,7 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 
 /* 내 방 꾸미기 */
 .sticker-wallet { align-self: center; background: var(--yellow); color: var(--ink); font-weight: 900; border-radius: 999px; padding: 10px 16px; white-space: nowrap; }
-.room { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; width: 100%; max-width: 900px; margin: 0 auto 22px; border-radius: 24px; overflow: hidden; border: 3px solid #fff; box-shadow: var(--shadow); background: var(--wall); }
+.room { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; width: 100%; max-width: 1008px; margin: 0 auto 22px; border-radius: 24px; overflow: hidden; border: 3px solid #fff; box-shadow: var(--shadow); background: var(--wall); }
 .room-wall, .room-floor { position: absolute; left: 0; right: 0; border: 0; padding: 0; cursor: pointer; }
 .room-wall { top: 0; height: 58%; background: var(--wall); }
 .room-floor { bottom: 0; height: 42%; background: var(--floor); border-top: 6px solid rgba(0, 0, 0, .08); }
@@ -567,7 +567,7 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .h-nw { left: -13px; top: -13px; cursor: nwse-resize; } .h-ne { right: -13px; top: -13px; cursor: nesw-resize; }
 .h-sw { left: -13px; bottom: -13px; cursor: nesw-resize; } .h-se { right: -13px; bottom: -13px; cursor: nwse-resize; }
 .room-empty-hint { position: absolute; left: 0; right: 0; bottom: 14%; margin: 0; text-align: center; font-weight: 800; font-size: clamp(12px, 2.6cqw, 18px); color: rgba(24, 55, 91, .5); pointer-events: none; }
-.obj-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 900px; margin: -8px auto 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 16px; font-size: 13px; }
+.obj-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 1008px; margin: -8px auto 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 16px; font-size: 13px; }
 .obj-bar.active { border-color: var(--orange); background: #fff9f0; }
 .obj-bar .secondary-button { padding: 8px 12px; font-size: 13px; }
 .obj-bar .danger { color: #c2410c; }
@@ -628,7 +628,7 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .teacher-room-note { display: block; margin-top: 8px; text-align: center; color: var(--muted); font-weight: 800; }
 
 /* 선생님 방: 패널 폭을 꽉 채워서 넓게 (아이템은 방 크기에 비례해 같이 커져요) */
-.teacher-room-panel .room, .teacher-room-panel .obj-bar { max-width: 1008px; } /* 720px × 1.4 */
+.teacher-room-panel .room, .teacher-room-panel .obj-bar { max-width: 1008px; } /* 720px × 1.4 (학생 방과 같아요) */
 
 /* 방 보기 방식: 싸이월드 미니룸 · 도트 (표시만 바뀌어요) */
 .room-style-switch { display: flex; gap: 6px; justify-content: center; margin: 0 0 12px; }
@@ -681,3 +681,22 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .mm-swatch i { display: block; width: 46px; height: 46px; border-radius: 50%; border: 3px solid #3b2f2f; }
 .mm-note { margin: 0 0 10px; font-size: 13px; color: var(--muted); font-weight: 700; }
 @media (max-width: 640px) { .minimi-editor { grid-template-columns: 1fr; } .mm-preview { position: static; } }
+
+/* 미니미 도트는 또렷하게, 말풍선은 머리 위에 */
+.minimi-stack img { image-rendering: pixelated; }
+.room-obj .mm-bubble, .mm-stage .mm-bubble { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -2px); z-index: 2; max-width: none; white-space: nowrap; padding: .25em .7em; background: #fff; color: #3b2f2f; border: 2px solid #3b2f2f; border-radius: 10px; font-weight: 800; line-height: 1.35; pointer-events: none; box-shadow: 2px 2px 0 rgba(59, 47, 47, .18); }
+.room-obj .mm-bubble { font-size: clamp(9px, 1.35cqw, 14px); }
+.room-obj .mm-bubble::after, .mm-stage .mm-bubble::after { content: ""; position: absolute; left: 50%; top: 100%; margin-left: -5px; border: 5px solid transparent; border-top-color: #3b2f2f; }
+.room-mini .room-obj .mm-bubble { font-size: clamp(7px, 1.6cqw, 12px); border-width: 1px; }
+.mm-stage { position: relative; display: flex; justify-content: center; padding-top: 34px; width: 100%; }
+.mm-stage .mm-bubble { font-size: 13px; }
+.mm-say { width: 100%; display: grid; gap: 6px; }
+.mm-say label { font-weight: 800; font-size: 13px; }
+.mm-say label small { color: var(--muted); font-weight: 700; }
+.mm-say input { width: 100%; padding: 8px 10px; border: 2px solid var(--line); border-radius: 10px; font: inherit; font-size: 13px; background: #fff; }
+.mm-quick { display: flex; flex-wrap: wrap; gap: 4px; }
+.mm-quick .chip { font-size: 11px; padding: 4px 8px; }
+.minimi-editor { grid-template-columns: 260px 1fr; }
+.mm-card .minimi-stack.thumb { width: 54px; }
+.mm-stage .mm-bubble { top: 0; bottom: auto; transform: translateX(-50%); }
+.mm-preview .mm-quick button { width: auto; }
