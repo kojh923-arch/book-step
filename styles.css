@@ -503,6 +503,52 @@ button.book-result:hover { border-color: #b9aef6; background: #fbfaff; transform
 .wish-added { flex: none; margin-left: auto; padding: 6px 10px; color: var(--mint-ink); font-size: 13px; font-weight: 900; }
 .wish-more { margin: 12px auto 0; display: block; }
 
+/* 새싹 캐릭터: 이름표 · 이름 짓기 · 화분 색 */
+.buddy-art { position: relative; }
+.buddy-art:has(.buddy-name) { margin-bottom: 18px; }
+.buddy-name { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); padding: 3px 12px; border: 2px solid #fff; border-radius: var(--r-pill); background: var(--primary); color: #fff; font-family: var(--font-display); font-size: 14px; white-space: nowrap; }
+.buddy-id { display: grid; justify-items: center; gap: 8px; }
+.buddy-id strong { font-family: var(--font-display); font-weight: 400; font-size: 20px; }
+.buddy-id .chip { display: inline-flex; align-items: center; gap: 6px; }
+.buddy-id .ico { width: 15px; height: 15px; }
+.buddy-form { width: 100%; display: grid; gap: 8px; padding: 14px; border-radius: 18px; background: #f6f4fd; text-align: left; }
+.buddy-form label, .buddy-form-label { font-size: 13px; font-weight: 800; }
+.buddy-form label small { color: var(--muted); font-weight: 700; }
+.buddy-form input { width: 100%; min-height: 46px; padding: 10px 14px; border: 2px solid var(--line); border-radius: 14px; background: #fff; outline: 0; }
+.buddy-form input:focus { border-color: #a99df3; box-shadow: 0 0 0 4px rgba(108, 92, 231, .14); }
+.buddy-form .button-row { margin-top: 6px; }
+.buddy-form .button-row > * { flex: 1; }
+.pot-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 3px; }
+.pot-swatch { width: 34px; height: 34px; padding: 0; border: 3px solid #fff; border-radius: 50%; background: var(--pot); box-shadow: 0 0 0 2px var(--line); transition: transform .2s var(--ease-spring), box-shadow .15s; }
+.pot-swatch:hover { transform: scale(1.12); }
+.pot-swatch.active { box-shadow: 0 0 0 3px var(--primary); transform: scale(1.1); }
+
+/* 우리 반 독서 소식 · 응원 스티커 */
+.feed-list { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; list-style: none; }
+.feed-item { display: flex; align-items: center; gap: 14px; padding: 10px 14px 10px 10px; border: 1.5px solid var(--line); border-radius: var(--r-md); background: #fff; }
+.feed-copy { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.feed-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-copy small { color: var(--muted); font-size: 13px; font-weight: 700; }
+.cheer-row { display: flex; flex: none; gap: 6px; }
+.cheer-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; height: 44px; padding: 0 8px; border: 1.5px solid var(--line); border-radius: var(--r-pill); background: #fff; font-size: 13px; font-weight: 800; color: var(--muted); transition: transform .2s var(--ease-spring), border-color .15s, background .15s; }
+.cheer-btn span { font-size: 20px; line-height: 1; filter: grayscale(.7); opacity: .75; transition: filter .15s, opacity .15s; }
+.cheer-btn:hover { transform: translateY(-3px) scale(1.06); border-color: var(--line-deep); }
+.cheer-btn:hover span, .cheer-btn.active span { filter: none; opacity: 1; }
+.cheer-btn.active { border-color: #a99df3; background: var(--primary-soft); color: var(--primary-ink); }
+.cheer-btn.pop span { animation: pop-in .45s var(--ease-spring); }
+.cheer-badge, .cheer-summary { display: inline-flex; align-items: center; gap: 8px; }
+.cheer-badge { padding: 4px 10px; border-radius: var(--r-pill); background: var(--primary-soft); color: var(--primary-ink); font-size: 13px; }
+.cheer-badge span, .cheer-summary span { display: inline-flex; align-items: center; gap: 2px; }
+.cheer-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 12px 16px; border-radius: 18px; background: var(--primary-soft); }
+.cheer-summary { font-size: 18px; }
+.cheer-summary b { font-size: 14px; color: var(--primary-ink); }
+
+/* 저장 완료: 스티커가 상단 스티커 칩으로 날아가요 */
+.fly-star { position: fixed; z-index: 60; width: 44px; height: 44px; color: #f2a91c; pointer-events: none; filter: drop-shadow(0 6px 8px rgba(242, 169, 28, .5)); }
+.fly-star .ico { width: 100%; height: 100%; fill-opacity: 1; stroke: #e89b0c; }
+.hud-star.bump { animation: chip-bump .6s var(--ease-spring); }
+@keyframes chip-bump { 0% { transform: scale(1); } 40% { transform: scale(1.28); background: #ffe9a8; } 100% { transform: scale(1); } }
+
 /* ---------- 6) 교사 · 내 방 (기존 규칙) ---------- */
 .teacher-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: var(--gap); align-items: start; }
 .teacher-grid > * { min-width: 0; }
@@ -995,6 +1041,9 @@ button.gift-card:hover { transform: translateY(-4px) rotate(-2deg); }
   .wish-item { flex-wrap: wrap; }
   .wish-actions { width: 100%; }
   .wish-actions .primary-button { flex: 1; }
+  .feed-item { flex-wrap: wrap; }
+  .cheer-row { width: 100%; justify-content: space-between; }
+  .cheer-btn { flex: 1; }
   .feedback-banner { flex-wrap: wrap; }
   .feedback-banner .primary-button { width: 100%; }
   .auth-card { padding: 26px 20px; border-radius: 26px; }

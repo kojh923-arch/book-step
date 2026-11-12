@@ -39,8 +39,11 @@ function icon(name, cls = '') {
 }
 
 // 성장 캐릭터: 레벨이 오를수록 화분의 새싹이 자라요 (0 씨앗 → 10 왕관 쓴 나무). index는 LEVELS의 순서예요.
-function levelArt(index = 0) {
+// 화분 색: [몸통, 테두리]. user_buddy.pot 값과 같은 이름이에요.
+const POT_COLORS = { peach: ['#ffb9a3', '#ff9f86'], mint: ['#a9e8c4', '#84d6a8'], sky: ['#a9d6ff', '#84bff5'], lilac: ['#c9bdfb', '#ac9cf3'], butter: ['#ffe08a', '#f5c95a'], pink: ['#ffbcd6', '#ff9cc0'] };
+function levelArt(index = 0, pot = 'peach') {
   const lv = Math.max(0, Math.min(10, Number(index) || 0));
+  const [potBody, potRim] = POT_COLORS[pot] || POT_COLORS.peach;
   const leaf = (x, y, rot, s = 1, fill = '#7fdc9f') => `<path d="M0 0C-11-6-13-21 0-30 13-21 11-6 0 0z" fill="${fill}" transform="translate(${x} ${y}) rotate(${rot}) scale(${s})"/>`;
   const flower = (x, y, s = 1, fill = '#ffb3cf') => `<g transform="translate(${x} ${y}) scale(${s})">${[0, 72, 144, 216, 288].map(a => `<circle cx="0" cy="-7" r="5.5" fill="${fill}" transform="rotate(${a})"/>`).join('')}<circle r="4.2" fill="#ffe27a"/></g>`;
   const star = (x, y, s = 1) => `<path d="M0-8c1.2 5 2.8 6.6 8 8-5.2 1.4-6.8 3-8 8-1.2-5-2.8-6.6-8-8 5.2-1.4 6.8-3 8-8z" fill="#ffd95e" transform="translate(${x} ${y}) scale(${s})"/>`;
@@ -63,11 +66,11 @@ function levelArt(index = 0) {
   return `<svg class="level-art level-art-${lv}" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
     <ellipse cx="60" cy="112" rx="30" ry="4.5" fill="#5b4dcf" opacity=".12"/>
     <g class="level-art-plant">${plant}</g>
-    <path d="M40 84h40l-4.5 22a6 6 0 0 1-5.9 4.8H50.4a6 6 0 0 1-5.9-4.8z" fill="#ffb9a3"/>
-    <rect x="35" y="75" width="50" height="12" rx="6" fill="#ff9f86"/>
+    <path d="M40 84h40l-4.5 22a6 6 0 0 1-5.9 4.8H50.4a6 6 0 0 1-5.9-4.8z" fill="${potBody}"/>
+    <rect x="35" y="75" width="50" height="12" rx="6" fill="${potRim}"/>
     <circle cx="53" cy="96" r="2.2" fill="#5a3b46"/><circle cx="67" cy="96" r="2.2" fill="#5a3b46"/>
     <path d="M56.5 100.5c2 2.2 5 2.2 7 0" stroke="#5a3b46" stroke-width="1.8" stroke-linecap="round" fill="none"/>
     <circle cx="48" cy="100" r="2.8" fill="#ff8f8f" opacity=".55"/><circle cx="72" cy="100" r="2.8" fill="#ff8f8f" opacity=".55"/>
   </svg>`;
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = { icon, levelArt, ICON_PATHS };
+if (typeof module !== 'undefined' && module.exports) module.exports = { icon, levelArt, ICON_PATHS, POT_COLORS };

@@ -17,13 +17,15 @@
 | `supabase-*.sql`, `supabase/functions/` | DB 구조와 서버 함수. 순서는 `docs/SETUP.md` |
 
 ## `app-supabase.js` 구역 (위에서 아래)
-상수 → 앱 상태(`state`) → 학교 검색 → 데이터 읽기·쓰기 → 화면 그리기 → 이벤트 처리 → 캘린더·도장·챌린지 → 내 방 → 내 책장
+상수 → 앱 상태(`state`) → 학교 검색 → 데이터 읽기·쓰기 → 화면 그리기 → 이벤트 처리 → 캘린더·도장·챌린지 → 내 방 → 내 책장 → 새싹 캐릭터·친구 응원·숫자 효과
 
 ## 자주 하는 수정은 어디서?
 - 미션 질문 바꾸기: 파일 맨 위 `MISSIONS`
 - 레벨 이름/기준: `lib/core.js`의 `LEVELS`
 - 스티커 계산 규칙: `lib/core.js`의 `stickerTotal`
 - 메뉴 순서·이름: `app-supabase.js`의 `NAV_ITEMS`(넓은 화면 위쪽 메뉴), `TAB_ITEMS`(휴대폰 아래 탭바)
+- 캐릭터 말풍선 문구: `lib/core.js`의 `buddyLineFor`
+- 응원 스티커 종류: `app-supabase.js`의 `CHEERS` (바꾸면 `supabase-buddy.sql`의 이모지 목록도 함께)
 - 색·둥글기·글꼴: `styles.css` 맨 위 `:root` 토큰
 - 화면 문구: 해당 화면 함수(`home`, `recordForm`, `growth`, `shelf` …)
 - 버튼 동작: 이벤트 처리 구역의 `if (action === '...')`
