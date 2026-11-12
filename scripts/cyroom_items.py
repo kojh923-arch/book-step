@@ -28,8 +28,6 @@ def study_desk(p):
     p.box(1.5, 10.5, 9, 21, 1, 1.2, WOOD2)
     p.box(0, 0, 14, 24, 12, 1.6, WOOD)
     p.box(13, 2, 10.2, 10, 10, 3.8, WOOD); p.lrect(13.6, 22.4, 10.6, 13.6, 12.01, tone(WOOD, 1.08)); p.lrect(17.2, 18.8, 11.8, 12.4, 12.02, BROWN)
-    p.box(3, 3, 15.6, 6, 4.5, 0.8, WHITE); p.box(3.4, 3.4, 16.4, 5.2, 3.7, 0.5, CREAM)   # 책
-    p.cyl(19, 3.5, 15.6, 1.4, 3, SKY); p.line((18.6, 3.2, 18.6), (18.0, 2.6, 21.5), RED, 2); p.line((19.4, 3.6, 18.6), (19.9, 3.0, 21.8), YEL, 2)
 
 def bookcase5(p):
     p.box(0, 0, 0, 16, 6, 40, WOOD)
@@ -55,12 +53,10 @@ def drawer3(p):
     for k in range(3):
         z = 1 + k * 5.2
         p.lrect(1, 14, z, z + 4.4, 9.01, tone(WOOD, 1.08)); p.lrect(6.6, 8.4, z + 1.8, z + 2.6, 9.02, BROWN)
-    p.cyl(4, 4, 17, 1.4, 3.2, MINT); p.blob(3.6, 4, 21.6, 1.6, 1.4, GREEN)
 
 def floor_table(p):
     for lx, ly in ((0.5, 0.5), (18, 0.5), (0.5, 9.5), (18, 9.5)): p.box(lx, ly, 0, 1.5, 1.5, 5, WOOD2)
     p.box(0, 0, 5, 20, 11.5, 1.5, CREAM, top=WHITE)
-    p.cyl(5, 4, 6.5, 1.3, 2, PINK); p.box(10, 4, 6.5, 6, 4, 0.6, SKY)
 
 def clothes_hanger(p):
     for x0 in (0, 17):
@@ -347,8 +343,6 @@ def study_desk_back(p):
     p.box(1.5, 10.5, 9, 21, 1, 1.2, WOOD2)
     p.box(1.5, 0, 10.2, 10, 10, 3.8, WOOD)
     p.box(0, 0, 14, 24, 12, 1.6, WOOD)
-    p.box(15, 5, 15.6, 6, 4.5, 0.8, WHITE); p.box(15.4, 5.4, 16.4, 5.2, 3.7, 0.5, CREAM)
-    p.cyl(5, 8.5, 15.6, 1.4, 3, SKY); p.line((4.6, 8.2, 18.6), (4.0, 7.6, 21.5), RED, 2); p.line((5.4, 8.6, 18.6), (5.9, 8.0, 21.8), YEL, 2)
 
 def laptop_back(p):
     p.box(0, 0, 0, 13, 9, 0.9, GRAY)
@@ -406,4 +400,4 @@ if __name__ == '__main__':
         with open('room-dot-data.js', 'w', encoding='utf-8') as fp:
             fp.write('// scripts/cyroom_items.py가 만든 파일이에요. 직접 고치지 말고 스크립트를 고쳐서 다시 만들어 주세요.\n')
             fp.write('// anchors: 그림 속 뒤쪽 바닥 모서리 위치(가로 비율, 세로 비율)와 그림 세로/가로 비율 → 벽에 딱 붙이기에 써요\n')
-            fp.write('window.ROOM_DOT = ' + json.dumps({'version': 4, 'back': sorted(BACK), 'wall': sorted(WALL), 'anchors': anchors}, ensure_ascii=False) + ';\n')
+            fp.write('window.ROOM_DOT = ' + json.dumps({'version': 5, 'back': sorted(BACK), 'wall': sorted(WALL), 'anchors': anchors}, ensure_ascii=False) + ';\n')
