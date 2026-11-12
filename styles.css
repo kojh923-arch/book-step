@@ -506,7 +506,7 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 
 /* 내 방 꾸미기 */
 .sticker-wallet { align-self: center; background: var(--yellow); color: var(--ink); font-weight: 900; border-radius: 999px; padding: 10px 16px; white-space: nowrap; }
-.room { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; width: 100%; max-width: 720px; margin: 0 auto 22px; border-radius: 24px; overflow: hidden; border: 3px solid #fff; box-shadow: var(--shadow); background: var(--wall); }
+.room { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; width: 100%; max-width: 1008px; margin: 0 auto 22px; border-radius: 24px; overflow: hidden; border: 3px solid #fff; box-shadow: var(--shadow); background: var(--wall); }
 .room-wall, .room-floor { position: absolute; left: 0; right: 0; border: 0; padding: 0; cursor: pointer; }
 .room-wall { top: 0; height: 58%; background: var(--wall); }
 .room-floor { bottom: 0; height: 42%; background: var(--floor); border-top: 6px solid rgba(0, 0, 0, .08); }
@@ -567,7 +567,7 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .h-nw { left: -13px; top: -13px; cursor: nwse-resize; } .h-ne { right: -13px; top: -13px; cursor: nesw-resize; }
 .h-sw { left: -13px; bottom: -13px; cursor: nesw-resize; } .h-se { right: -13px; bottom: -13px; cursor: nwse-resize; }
 .room-empty-hint { position: absolute; left: 0; right: 0; bottom: 14%; margin: 0; text-align: center; font-weight: 800; font-size: clamp(12px, 2.6cqw, 18px); color: rgba(24, 55, 91, .5); pointer-events: none; }
-.obj-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 720px; margin: -8px auto 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 16px; font-size: 13px; }
+.obj-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 1008px; margin: -8px auto 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: 16px; font-size: 13px; }
 .obj-bar.active { border-color: var(--orange); background: #fff9f0; }
 .obj-bar .secondary-button { padding: 8px 12px; font-size: 13px; }
 .obj-bar .danger { color: #c2410c; }
@@ -628,7 +628,26 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .teacher-room-note { display: block; margin-top: 8px; text-align: center; color: var(--muted); font-weight: 800; }
 
 /* 선생님 방: 패널 폭을 꽉 채워서 넓게 (아이템은 방 크기에 비례해 같이 커져요) */
-.teacher-room-panel .room, .teacher-room-panel .obj-bar { max-width: 1008px; } /* 720px × 1.4 */
+.teacher-room-panel .room, .teacher-room-panel .obj-bar { max-width: 1008px; } /* 720px × 1.4 (학생 방과 같아요) */
+
+/* 방 보기 방식: 싸이월드 미니룸 · 도트 (표시만 바뀌어요) */
+.room-style-switch { display: flex; gap: 6px; justify-content: center; margin: 0 0 12px; }
+.room.room-cy { background: radial-gradient(circle at 50% 40%, #fff 0, #dff1ff 70%), #dff1ff; }
+.room-cy .room-wall, .room-cy .room-floor { display: none; }
+.cy-wall, .cy-floor, .cy-lines { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.cy-wall { background: var(--wall); }
+.cy-wall-l { clip-path: polygon(6.25% 32%, 50% 6%, 50% 42%, 6.25% 68%); filter: brightness(.93); }
+.cy-wall-r { clip-path: polygon(50% 6%, 93.75% 32%, 93.75% 68%, 50% 42%); }
+.cy-floor { background: var(--floor); clip-path: polygon(50% 42%, 93.75% 68%, 50% 96%, 6.25% 68%); }
+.cy-lines { width: 100%; height: 100%; fill: none; stroke: rgba(70, 45, 20, .4); stroke-width: 1.4; stroke-linejoin: round; }
+.cy-lines * { vector-effect: non-scaling-stroke; }
+.room-dot { border: 4px solid #3b2f2f; border-radius: 6px; box-shadow: 5px 5px 0 #3b2f2f; image-rendering: pixelated; }
+.room.room-dot { background: repeating-conic-gradient(#e9f5ff 0 25%, #dcefff 0 50%) 0 0 / 16px 16px; }
+.room-dot .cy-wall::after, .room-dot .cy-floor::after { content: ""; position: absolute; inset: 0; }
+.room-dot .cy-wall::after { background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .22) 0 6px, transparent 6px 14px); }
+.room-dot .cy-floor::after { background: repeating-linear-gradient(159.6deg, rgba(90, 55, 25, .16) 0 2px, transparent 2px 20px); }
+.room-dot .room-obj img { filter: drop-shadow(3px 3px 0 rgba(60, 40, 20, .18)); }
+.room-dot .cy-lines { stroke: #3b2f2f; stroke-width: 2; }
 
 /* 슈퍼 관리자 화면 (읽기 전용) */
 .admin-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin: 18px 0; }
@@ -641,3 +660,43 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .admin-table { width: 100%; border-collapse: collapse; }
 .admin-table th, .admin-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #eeeaff; vertical-align: top; }
 .admin-table th { color: #7b7a99; font-size: .85rem; white-space: nowrap; }
+
+/* 미니미: 부위별 그림을 겹쳐 그려요 */
+.minimi-stack { position: relative; display: block; width: 100%; }
+.minimi-stack img { display: block; width: 100%; height: auto; pointer-events: none; -webkit-user-drag: none; }
+.minimi-stack img + img { position: absolute; inset: 0; }
+.room-dot .room-obj .minimi-stack { filter: drop-shadow(3px 3px 0 rgba(60, 40, 20, .18)); }
+.minimi-editor { display: grid; grid-template-columns: 220px 1fr; gap: 18px; align-items: start; margin-top: 12px; padding: 16px; background: #fffaf3; }
+.mm-preview { display: flex; flex-direction: column; align-items: center; gap: 8px; position: sticky; top: 12px; padding: 14px; border-radius: 18px; background: repeating-conic-gradient(#eaf6ff 0 25%, #dcefff 0 50%) 0 0 / 16px 16px; border: 3px solid #3b2f2f; }
+.mm-preview .minimi-stack.big { width: 150px; }
+.mm-preview button { width: 100%; }
+.mm-preview small { color: var(--muted); font-weight: 700; text-align: center; }
+.mm-groups { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.mm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+.mm-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border: 2px solid var(--line); border-radius: 14px; background: #fff; cursor: pointer; font: inherit; }
+.mm-card:hover { border-color: var(--blue); }
+.mm-card.active { border-color: var(--orange); background: #fff4e6; box-shadow: 0 0 0 2px rgba(255, 140, 90, .25); }
+.mm-card .minimi-stack.thumb { width: 64px; }
+.mm-card b { font-size: 12px; }
+.mm-swatch i { display: block; width: 46px; height: 46px; border-radius: 50%; border: 3px solid #3b2f2f; }
+.mm-note { margin: 0 0 10px; font-size: 13px; color: var(--muted); font-weight: 700; }
+@media (max-width: 640px) { .minimi-editor { grid-template-columns: 1fr; } .mm-preview { position: static; } }
+
+/* 미니미 도트는 또렷하게, 말풍선은 머리 위에 */
+.minimi-stack img { image-rendering: pixelated; }
+.room-obj .mm-bubble, .mm-stage .mm-bubble { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -2px); z-index: 2; max-width: none; white-space: nowrap; padding: .25em .7em; background: #fff; color: #3b2f2f; border: 2px solid #3b2f2f; border-radius: 10px; font-weight: 800; line-height: 1.35; pointer-events: none; box-shadow: 2px 2px 0 rgba(59, 47, 47, .18); }
+.room-obj .mm-bubble { font-size: clamp(9px, 1.35cqw, 14px); }
+.room-obj .mm-bubble::after, .mm-stage .mm-bubble::after { content: ""; position: absolute; left: 50%; top: 100%; margin-left: -5px; border: 5px solid transparent; border-top-color: #3b2f2f; }
+.room-mini .room-obj .mm-bubble { font-size: clamp(7px, 1.6cqw, 12px); border-width: 1px; }
+.mm-stage { position: relative; display: flex; justify-content: center; padding-top: 34px; width: 100%; }
+.mm-stage .mm-bubble { font-size: 13px; }
+.mm-say { width: 100%; display: grid; gap: 6px; }
+.mm-say label { font-weight: 800; font-size: 13px; }
+.mm-say label small { color: var(--muted); font-weight: 700; }
+.mm-say input { width: 100%; padding: 8px 10px; border: 2px solid var(--line); border-radius: 10px; font: inherit; font-size: 13px; background: #fff; }
+.mm-quick { display: flex; flex-wrap: wrap; gap: 4px; }
+.mm-quick .chip { font-size: 11px; padding: 4px 8px; }
+.minimi-editor { grid-template-columns: 260px 1fr; }
+.mm-card .minimi-stack.thumb { width: 54px; }
+.mm-stage .mm-bubble { top: 0; bottom: auto; transform: translateX(-50%); }
+.mm-preview .mm-quick button { width: auto; }

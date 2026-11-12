@@ -140,6 +140,51 @@ on conflict (id) do update set
   unlock_level = excluded.unlock_level, reward_level = excluded.reward_level, category = excluded.category,
   img = excluded.img, base_w = excluded.base_w;
 
+-- 미니미: 방에 서는 캐릭터 아이템 하나. 생김새(머리·옷·모자 등)는 user_minimi에 따로 저장해요.
+insert into public.room_items (id, name, emoji, color, slot, price, unlock_level, reward_level, category, img, base_w) values
+  ('minimi', '미니미', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi/preview.png?v=2', 12)
+on conflict (id) do update set
+  name = excluded.name, category = excluded.category, img = excluded.img, base_w = excluded.base_w;
+
+create table if not exists public.user_minimi (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  look jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.user_minimi add column if not exists bubble text not null default '' check (char_length(bubble) <= 30);   -- 말풍선
+alter table public.user_minimi enable row level security;
+drop policy if exists "user_minimi own read" on public.user_minimi;
+create policy "user_minimi own read" on public.user_minimi for select to authenticated using (user_id = (select auth.uid()));
+revoke all on public.user_minimi from anon;
+revoke insert, update, delete, truncate, trigger, references on public.user_minimi from authenticated;
+grant select on public.user_minimi to authenticated;
+
+-- 미니미 생김새·말풍선 저장: 생김새는 정해진 항목 이름과 짧은 영문 값만, 말풍선은 30자까지 받아요.
+drop function if exists public.set_minimi(jsonb);
+create or replace function public.set_minimi(p_look jsonb, p_bubble text default '')
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare k text; v jsonb; v_bubble text := btrim(regexp_replace(coalesce(p_bubble, ''), '[[:cntrl:]]', ' ', 'g'));
+begin
+  if auth.uid() is null then raise exception '로그인이 필요해요.'; end if;
+  if jsonb_typeof(p_look) is distinct from 'object' or length(p_look::text) > 600 then raise exception '미니미 정보가 올바르지 않아요.'; end if;
+  for k, v in select * from jsonb_each(p_look) loop
+    if k not in ('skin', 'face', 'hair', 'hairColor', 'top', 'bottom', 'shoes', 'hat', 'glasses', 'hand')
+       or jsonb_typeof(v) <> 'string' or (v #>> '{}') !~ '^[a-z_]{1,20}$' then
+      raise exception '미니미 정보가 올바르지 않아요.';
+    end if;
+  end loop;
+  if char_length(v_bubble) > 30 then raise exception '말풍선은 30자까지 쓸 수 있어요.'; end if;
+  insert into public.user_minimi (user_id, look, bubble, updated_at) values (auth.uid(), p_look, v_bubble, now())
+  on conflict (user_id) do update set look = excluded.look, bubble = excluded.bubble, updated_at = now();
+end;
+$$;
+revoke execute on function public.set_minimi(jsonb, text) from public, anon;
+grant execute on function public.set_minimi(jsonb, text) to authenticated;
+
 -- 책 권수 → 레벨 번호 (앱의 LEVELS와 같은 기준: 0,5,10,20,40,60,80,100,130,160,200권)
 create or replace function public.room_level(p_books int)
 returns int
@@ -332,7 +377,7 @@ grant execute on function public.remove_object(uuid) to authenticated;
 -- 선생님 방(is_teacher = true)이 맨 앞에 나와요.
 drop function if exists public.classmate_rooms();
 create or replace function public.classmate_rooms()
-returns table (nickname text, is_teacher boolean, placed jsonb, objects jsonb)
+returns table (nickname text, is_teacher boolean, placed jsonb, objects jsonb, minimi jsonb, minimi_say text)
 language sql
 stable
 security definer
@@ -342,7 +387,9 @@ as $$
          (p.role = 'teacher'),
          coalesce((select jsonb_object_agg(ur.slot, ur.item_id) from public.user_room ur where ur.user_id = p.id), '{}'::jsonb),
          coalesce((select jsonb_agg(jsonb_build_object('item_id', o.item_id, 'x', o.x, 'y', o.y, 'scale', o.scale, 'flip', o.flip, 'z', o.z) order by o.z)
-                   from public.room_objects o where o.user_id = p.id), '[]'::jsonb)
+                   from public.room_objects o where o.user_id = p.id), '[]'::jsonb),
+         (select um.look from public.user_minimi um where um.user_id = p.id),
+         (select um.bubble from public.user_minimi um where um.user_id = p.id)
   from public.profiles p, (select class_id from public.profiles where id = auth.uid()) me
   where me.class_id is not null
     and p.id <> auth.uid()

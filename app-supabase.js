@@ -468,11 +468,11 @@ function communityPanel() {
 }
 
 // 내 방 꾸미기: 스티커로 아이템을 사서 방에 자유롭게 놓아요. (supabase-room.sql)
-const ROOM_TABS = [['furniture', '🛋️ 가구·소품'], ['pet', '🐾 펫'], ['wallpaper', '🎨 벽지'], ['floor', '🟫 바닥']];
+const ROOM_TABS = [['minimi', '🧑 미니미'], ['furniture', '🛋️ 가구·소품'], ['pet', '🐾 펫'], ['wallpaper', '🎨 벽지'], ['floor', '🟫 바닥']];
 const ROOM_CATEGORIES = [['furniture', '가구'], ['seat', '의자·쿠션'], ['lamp', '조명'], ['wall', '벽 장식'], ['decor', '인테리어'], ['tech', '전자기기'], ['stationery', '문구·소품']];
 const ROOM_SETS = [[0, '기본 세트'], [1, '첫걸음 세트'], [3, '새싹 세트'], [6, '모험 세트']];
 const ROOM_MAX_OBJECTS = 30;
-state.roomTab = 'furniture';
+state.roomTab = 'minimi';
 state.roomCat = null;
 state.roomMode = 'mine';
 state.friends = null;
@@ -491,10 +491,13 @@ async function loadRoom() {
     sb.from('room_objects').select('id,item_id,x,y,scale,flip,z').order('z')
   ]);
   if (items.error || owned.error || placed.error || objects.error) return;
+  const mini = await sb.from('user_minimi').select('look,bubble').maybeSingle();   // 미니미 생김새 (없어도 방은 열려요)
   data.room = {
     ready: true, items: items.data || [], owned: (owned.data || []).map(row => row.item_id),
     placed: Object.fromEntries((placed.data || []).map(row => [row.slot, row.item_id])),
-    objects: (objects.data || []).map(o => ({ ...o, x: Number(o.x), y: Number(o.y), scale: Number(o.scale) }))
+    objects: (objects.data || []).map(o => ({ ...o, x: Number(o.x), y: Number(o.y), scale: Number(o.scale) })),
+    minimi: mini.error ? null : mini.data?.look || null,
+    minimiSay: mini.error ? '' : mini.data?.bubble || ''
   };
   if (!data.room.objects.some(o => o.id === state.selectedObj)) state.selectedObj = null;
 }
@@ -511,25 +514,25 @@ const roomSpent = () => (data.room?.owned || []).reduce((sum, id) => sum + (room
 function stickersAvailable() { return Math.max(0, stickerCount() - roomSpent()); }
 const roomDefault = slot => data.room?.items.find(item => item.slot === slot && roomIsDefault(item));
 const roomPlaced = (slot, placedMap = data.room?.placed) => roomItemById(placedMap?.[slot]) || roomDefault(slot);
-const roomVisual = item => item.img ? `<img src="${esc(item.img)}" alt="" loading="lazy" draggable="false" />` : item.color ? `<span class="room-swatch" style="background:${esc(item.color)}"></span>` : esc(item.emoji);
+const roomVisual = item => item.img ? `<img src="${esc(pixelSrc(item.img))}" alt="" loading="lazy" draggable="false" />` : item.color ? `<span class="room-swatch" style="background:${esc(item.color)}"></span>` : esc(item.emoji);
 const roomSetFor = lv => ROOM_SETS.reduce((found, set) => lv >= set[0] ? set : found, ROOM_SETS[0]);
 const placedCount = item => data.room.objects.filter(o => o.item_id === item.id).length;
 const clampNum = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-const TEACHER_ROOM_ZOOM = 1.4; // 선생님 방은 1.4배 넓은 방 (아이템 크기는 그대로)
-function objectHtml(obj, readonly, zoom = 1) {
+const TEACHER_ROOM_ZOOM = roomZoomFor(true); // 학생 방·선생님 방 모두 1.4배 넓은 방 (아이템 크기는 그대로)
+function objectHtml(obj, readonly, zoom = 1, look = null, say = '') {
   const item = roomItemById(obj.item_id);
   if (!item?.img) return '';
   const selected = !readonly && state.selectedObj === obj.id;
   const handles = readonly ? '' : ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
-  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / zoom}%;z-index:${10 + Number(obj.z || 0)}"><img src="${esc(item.img)}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
+  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / zoom}%;z-index:${10 + Number(obj.z || 0)}">${item.category === MINIMI_CATEGORY ? minimiBubble(say) + minimiStack(look, '', obj.flip) : `<img src="${esc(pixelSrc(item.img))}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />`}${handles}</div>`;
 }
-function roomScene(placedMap = data.room.placed, objects = data.room.objects, readonly = false, zoom = 1) {
+function roomScene(placedMap = data.room.placed, objects = data.room.objects, readonly = false, zoom = ROOM_ZOOM, look = data.room?.minimi, say = data.room?.minimiSay) {
   const wall = roomPlaced('wallpaper', placedMap), floor = roomPlaced('floor', placedMap);
   const style = `--wall:${esc(wall?.color || '#fff4dc')};--floor:${esc(floor?.color || '#e8c9a0')}`;
-  const objs = [...objects].sort((a, b) => a.z - b.z).map(obj => objectHtml(obj, readonly, zoom)).join('');
+  const objs = [...objects].sort((a, b) => a.z - b.z).map(obj => objectHtml(obj, readonly, zoom, look, say)).join('');
   const hint = !readonly && !objects.length ? '<p class="room-empty-hint">아래에서 아이템을 눌러 방에 놓아 보세요!</p>' : '';
-  return `<div class="room${readonly ? ' room-mini' : ''}" ${readonly ? '' : 'id="room-stage"'} style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${objs}${hint}</div>`;
+  return `<div class="room${readonly ? ' room-mini' : ''}${roomStyleClass()}" ${readonly ? '' : 'id="room-stage"'} style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${roomBackdrop()}${objs}${hint}</div>`;
 }
 function objectBar() {
   const obj = data.room.objects.find(o => o.id === state.selectedObj);
@@ -545,6 +548,7 @@ function roomItemCard(item) {
   const n = isObject ? placedCount(item) : 0;
   let action;
   if (placed) action = `<button class="secondary-button" data-action="clear-slot" data-slot="${esc(item.slot)}"${roomIsDefault(item) ? ' disabled' : ''}>${roomIsDefault(item) ? '사용 중' : '빼기'}</button>`;
+  else if (item.category === MINIMI_CATEGORY) action = n ? '<button class="secondary-button" disabled>내 미니미</button>' : `<button class="primary-button" data-action="add-object" data-item-id="${esc(item.id)}">이 미니미로</button>`;
   else if (roomOwned(item)) action = isObject ? `<button class="primary-button" data-action="add-object" data-item-id="${esc(item.id)}">놓기</button>` : `<button class="primary-button" data-action="place-item" data-item-id="${esc(item.id)}">놓기</button>`;
   else if (item.reward_level != null) action = `<button class="secondary-button" disabled>🎁 LV.${item.reward_level} 선물</button>`;
   else if (lv < item.unlock_level) action = `<button class="secondary-button" disabled>🔒 LV.${item.unlock_level}</button>`;
@@ -572,19 +576,19 @@ function friendsPanel() {
   if (state.friends.error) return '<section class="panel"><div class="empty">친구 방을 불러오지 못했어요. (supabase-room.sql을 다시 실행해야 해요)</div></section>';
   if (!state.friends.rows.length) return '<section class="panel"><div class="empty">같은 반 친구가 아직 없어요. 친구가 가입하면 여기에서 방을 구경할 수 있어요.</div></section>';
   return `<section class="friend-grid">${state.friends.rows.map(row => row.is_teacher
-    ? `<article class="friend-room teacher-room"><strong>👩‍🏫 ${esc(/선생님$/.test(row.nickname) ? row.nickname : row.nickname + ' 선생님')}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, TEACHER_ROOM_ZOOM)}<small class="teacher-room-note">선생님 방을 보고 우리도 스티커를 모아 꾸며 봐요!</small></article>`
-    : `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true)}</article>`).join('')}</section>`;
+    ? `<article class="friend-room teacher-room"><strong>👩‍🏫 ${esc(/선생님$/.test(row.nickname) ? row.nickname : row.nickname + ' 선생님')}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, TEACHER_ROOM_ZOOM, row.minimi, row.minimi_say)}<small class="teacher-room-note">선생님 방을 보고 우리도 스티커를 모아 꾸며 봐요!</small></article>`
+    : `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, ROOM_ZOOM, row.minimi, row.minimi_say)}</article>`).join('')}</section>`;
 }
 function roomView() {
   const head = `<section class="page-title"><div><p class="eyebrow">MY ROOM</p><h1>내 방 꾸미기</h1><p class="subtitle">책을 읽고 받은 스티커로 방을 꾸며 보세요. 책 1권을 기록하면 스티커 1개를 받아요.</p></div><span class="sticker-wallet">⭐ 사용 가능 ${data.room?.ready ? stickersAvailable() : 0}개</span></section>`;
   if (!data.room?.ready) return layout(`${head}<section class="panel"><div class="empty">내 방을 불러오지 못했어요.<br>선생님께 문의해 주세요. (supabase-room.sql 실행 필요)</div></section>`, 'room');
-  const modes = `<div class="room-modes"><button class="slot-tab${state.roomMode === 'mine' ? ' active' : ''}" data-action="room-mode" data-mode="mine">🏠 내 방</button><button class="slot-tab${state.roomMode === 'friends' ? ' active' : ''}" data-action="room-mode" data-mode="friends">👫 친구 방 구경</button></div>`;
+  const modes = `${roomStyleSwitcher('room-style')}<div class="room-modes"><button class="slot-tab${state.roomMode === 'mine' ? ' active' : ''}" data-action="room-mode" data-mode="mine">🏠 내 방</button><button class="slot-tab${state.roomMode === 'friends' ? ' active' : ''}" data-action="room-mode" data-mode="friends">👫 친구 방 구경</button></div>`;
   if (state.roomMode === 'friends') return layout(`${head}${modes}${friendsPanel()}`, 'room');
   const lv = LEVELS.indexOf(level());
   const tabs = ROOM_TABS.map(([key, label]) => `<button class="slot-tab${state.roomTab === key ? ' active' : ''}" data-action="room-tab" data-tab="${key}">${label}</button>`).join('');
   const isFurniture = state.roomTab === 'furniture';
   const filter = isFurniture ? `<div class="slot-filter"><button class="chip${state.roomCat ? '' : ' active'}" data-action="room-filter" data-cat="">전체</button>${ROOM_CATEGORIES.map(([key, label]) => `<button class="chip${state.roomCat === key ? ' active' : ''}" data-action="room-filter" data-cat="${key}">${label}</button>`).join('')}</div>` : '';
-  const visible = data.room.items.filter(item => item.reward_level == null && (isFurniture ? item.slot === 'object' && item.category !== 'pet' && (!state.roomCat || item.category === state.roomCat) : state.roomTab === 'pet' ? item.category === 'pet' : item.slot === state.roomTab));
+  const visible = data.room.items.filter(item => item.reward_level == null && (isFurniture ? item.slot === 'object' && item.category !== 'pet' && item.category !== MINIMI_CATEGORY && (!state.roomCat || item.category === state.roomCat) : state.roomTab === 'pet' ? item.category === 'pet' : state.roomTab === 'minimi' ? item.category === MINIMI_CATEGORY : item.slot === state.roomTab));
   const sets = ROOM_SETS.map(([min, name], index) => {
     const next = ROOM_SETS[index + 1]?.[0] ?? Infinity;
     const group = visible.filter(item => item.unlock_level >= min && item.unlock_level < next);
@@ -593,7 +597,7 @@ function roomView() {
     return `<div class="shop-set"><h3>${name} <small>${group.length}종</small>${lock}</h3><div class="shop-grid">${group.map(roomItemCard).join('')}</div></div>`;
   }).join('');
   const empty = state.roomTab === 'pet' ? '펫은 곧 만나요! 🐾' : '아직 준비된 아이템이 없어요.';
-  return layout(`${head}${modes}${roomScene()}${objectBar()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p>${roomGifts(lv)}<section class="panel shop-panel"><div class="slot-tabs">${tabs}</div>${filter}${sets || `<div class="empty">${empty}</div>`}</section>`, 'room');
+  return layout(`${head}${modes}${roomScene()}${objectBar()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p>${roomGifts(lv)}<section class="panel shop-panel"><div class="slot-tabs">${tabs}</div>${state.roomTab === 'minimi' ? minimiEditorHtml(data.room.minimi, data.room.objects.some(o => roomItemById(o.item_id)?.category === MINIMI_CATEGORY), data.room.minimiSay, data.records?.[0]?.title ? [`'${data.records[0].title}' 다 읽었다!`] : []) : `${filter}${sets || `<div class="empty">${empty}</div>`}`}</section>`, 'room');
 }
 
 // 방 안에서 아이템 끌기 · 모서리로 크기 조절
@@ -636,7 +640,7 @@ document.addEventListener('pointermove', e => {
   } else {
     d.moved = true;
     d.obj.scale = clampNum(d.scale0 * Math.hypot(e.clientX - d.cx, e.clientY - d.cy) / d.dist0, 0.4, 2.5);
-    d.el.style.width = item.base_w * d.obj.scale + '%';
+    d.el.style.width = item.base_w * d.obj.scale / ROOM_ZOOM + '%';
   }
 });
 async function endDrag(e) {
@@ -651,7 +655,8 @@ document.addEventListener('pointercancel', endDrag);
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
   const action = el?.dataset.action;
-  if (!['room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
+  if (!['mm-save', 'room-style', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
+  if (action === 'room-style') { setRoomStyle(el.dataset.style); render(); return; }
   if (action === 'room-tab') { state.roomTab = el.dataset.tab; state.roomCat = null; render(); return; }
   if (action === 'room-filter') { state.roomCat = el.dataset.cat || null; render(); return; }
   if (action === 'room-mode') {
@@ -663,9 +668,16 @@ document.addEventListener('click', async e => {
   roomBusy = true;
   try {
     const obj = data.room.objects.find(o => o.id === state.selectedObj);
-    if (action === 'flip-obj' && obj) {
+    if (action === 'mm-save') {   // 미니미 생김새 저장 + 방에 없으면 세우기
+      const { error } = await sb.rpc('set_minimi', { p_look: minimiLook(mmEditor.draft || data.room.minimi), p_bubble: minimiSayClean(mmEditor.say ?? data.room.minimiSay) }); if (error) throw error;
+      if (!data.room.objects.some(o => roomItemById(o.item_id)?.category === MINIMI_CATEGORY)) {
+        const { data: newId, error: addError } = await sb.rpc('add_object', { p_item_id: MINIMI_ITEM_ID, p_x: 50, p_y: 66 }); if (addError) throw addError;
+        state.selectedObj = newId;
+      }
+      await loadRoom();
+    } else if (action === 'flip-obj' && obj) {
       obj.flip = !obj.flip;
-      const img = document.querySelector(`.room-obj[data-oid="${obj.id}"] img`);
+      const img = document.querySelector(`.room-obj[data-oid="${obj.id}"] > :first-child`);
       if (img) img.style.transform = `scaleX(${obj.flip ? -1 : 1})`;
       await saveObject(obj);
     } else if (action === 'front-obj' && obj) {
@@ -679,7 +691,12 @@ document.addEventListener('click', async e => {
       if (action === 'buy-item') { const { error } = await sb.rpc('buy_item', { p_item_id: id }); if (error) throw error; }
       if (item.slot === 'object') {
         const wall = item.category === 'wall';
-        const x = 50 + (Math.random() - .5) * 30, y = wall ? 22 + Math.random() * 10 : 68 + Math.random() * 10;
+        let x = 50 + (Math.random() - .5) * 30, y = wall ? 22 + Math.random() * 10 : 68 + Math.random() * 10;
+        if (item.category === MINIMI_CATEGORY) {   // 미니미는 방에 하나만: 있던 미니미 자리에 바꿔 세워요
+          const old = data.room.objects.find(o => roomItemById(o.item_id)?.category === MINIMI_CATEGORY);
+          if (old) { x = old.x; y = old.y; const { error: rmError } = await sb.rpc('remove_object', { p_id: old.id }); if (rmError) throw rmError; }
+          else { x = 50; y = 66; }
+        }
         const { data: newId, error } = await sb.rpc('add_object', { p_item_id: id, p_x: x, p_y: y }); if (error) throw error;
         await loadRoom(); state.selectedObj = newId;
       } else {
