@@ -19,7 +19,9 @@ async function loadTeacherRoom() {
   troom.items = items.data || [];
   troom.placed = Object.fromEntries((placed.data || []).map(row => [row.slot, row.item_id]));
   troom.objects = (objects.data || []).map(o => ({ ...o, x: Number(o.x), y: Number(o.y), scale: Number(o.scale) }));
-  const mini = await sb.from('user_minimi').select('look,bubble').maybeSingle();
+  const [mini, counts, guest] = await Promise.all([sb.from('user_minimi').select('look,bubble').maybeSingle(), sb.rpc('room_counts'), sb.rpc('guestbook_list')]);
+  troom.counts = counts.error ? null : counts.data?.[0] || null;
+  troom.guest = guest.error ? [] : guest.data || [];
   troom.minimi = mini.error ? null : mini.data?.look || null;
   troom.minimiSay = mini.error ? '' : mini.data?.bubble || '';
   if (!troom.objects.some(o => o.id === troom.selected)) troom.selected = null;
@@ -68,7 +70,7 @@ function teacherRoomPanel() {
   const tabs = TROOM_TABS.map(([key, label]) => `<button class="slot-tab${troom.tab === key ? ' active' : ''}" data-action="troom-tab" data-tab="${key}">${label}</button>`).join('');
   const filter = furniture ? `<div class="slot-filter"><button class="chip${troom.cat ? '' : ' active'}" data-action="troom-cat" data-cat="">전체</button>${TROOM_CATS.map(([key, label]) => `<button class="chip${troom.cat === key ? ' active' : ''}" data-action="troom-cat" data-cat="${key}">${label}</button>`).join('')}</div>` : '';
   const visible = troom.items.filter(item => furniture ? item.slot === 'object' && item.category !== 'pet' && item.category !== MINIMI_CATEGORY && (!troom.cat || item.category === troom.cat) : troom.tab === 'minimi' ? item.category === MINIMI_CATEGORY : item.slot === troom.tab);
-  return `${head}<p class="subtitle">선생님은 스티커 없이 모든 아이템을 마음껏 쓸 수 있어요. 우리 반 학생들이 ‘친구 방 구경’에서 선생님 방을 보고 따라 꾸밀 수 있어요.</p>${roomStyleSwitcher('troom-style')}${troomScene()}${troomBar()}<div class="slot-tabs">${tabs}</div>${troom.tab === 'minimi' ? minimiEditorHtml(troom.minimi, troom.objects.some(o => troomItem(o.item_id)?.category === MINIMI_CATEGORY), troom.minimiSay, ['얘들아, 책 읽자!', '오늘도 멋진 하루!']) : `${filter}<div class="shop-grid">${visible.map(troomCard).join('') || '<div class="empty">아직 준비된 아이템이 없어요.</div>'}</div>`}</section>`;
+  return `${head}<p class="subtitle">선생님은 스티커 없이 모든 아이템을 마음껏 쓸 수 있어요. 우리 반 학생들이 ‘친구 방 구경’에서 선생님 방을 보고 따라 꾸밀 수 있어요.</p>${roomStyleSwitcher('troom-style')}${roomCounterHtml(troom.counts, '선생님 미니룸')}${troomScene()}${troomBar()}${guestbookHtml(troom.guest, { title: '📒 선생님 방명록', empty: '아직 학생들이 남긴 방명록이 없어요.' })}<div class="slot-tabs">${tabs}</div>${troom.tab === 'minimi' ? minimiEditorHtml(troom.minimi, troom.objects.some(o => troomItem(o.item_id)?.category === MINIMI_CATEGORY), troom.minimiSay, ['얘들아, 책 읽자!', '오늘도 멋진 하루!']) : `${filter}<div class="shop-grid">${visible.map(troomCard).join('') || '<div class="empty">아직 준비된 아이템이 없어요.</div>'}</div>`}</section>`;
 }
 
 // 끌어서 옮기기 · 모서리로 크기 조절
@@ -124,7 +126,7 @@ document.addEventListener('pointercancel', troomEndDrag);
 document.addEventListener('click', async event => {
   const el = event.target.closest('[data-action]');
   const action = el?.dataset.action;
-  if (!action?.startsWith('troom-') && action !== 'mm-save') return;
+  if (!action?.startsWith('troom-') && action !== 'mm-save' && action !== 'gb-del') return;
   if (action === 'troom-style') { setRoomStyle(el.dataset.style); keepScroll(render); return; }
   if (action === 'troom-tab') { troom.tab = el.dataset.tab; troom.cat = null; keepScroll(render); return; }
   if (action === 'troom-cat') { troom.cat = el.dataset.cat || null; keepScroll(render); return; }
@@ -132,7 +134,9 @@ document.addEventListener('click', async event => {
   troom.busy = true;
   try {
     const obj = troom.objects.find(o => o.id === troom.selected);
-    if (action === 'mm-save') {   // 미니미 생김새 저장 + 방에 없으면 세우기
+    if (action === 'gb-del') {
+      if (confirm('이 방명록을 지울까요?')) { const { error } = await sb.rpc('guestbook_delete', { p_id: el.dataset.id }); if (error) throw error; await loadTeacherRoom(); }
+    } else if (action === 'mm-save') {   // 미니미 생김새 저장 + 방에 없으면 세우기
       const { error } = await sb.rpc('set_minimi', { p_look: minimiLook(mmEditor.draft || troom.minimi), p_bubble: minimiSayClean(mmEditor.say ?? troom.minimiSay) }); if (error) throw error;
       if (!troom.objects.some(o => troomItem(o.item_id)?.category === MINIMI_CATEGORY)) {
         const { data: newId, error: addError } = await sb.rpc('add_object', { p_item_id: MINIMI_ITEM_ID, p_x: 50, p_y: 66 }); if (addError) throw addError;

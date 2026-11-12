@@ -491,13 +491,17 @@ async function loadRoom() {
     sb.from('room_objects').select('id,item_id,x,y,scale,flip,z').order('z')
   ]);
   if (items.error || owned.error || placed.error || objects.error) return;
-  const mini = await sb.from('user_minimi').select('look,bubble').maybeSingle();   // 미니미 생김새 (없어도 방은 열려요)
+  const [mini, counts, guest] = await Promise.all([   // 미니미·방문자 수·방명록 (없어도 방은 열려요)
+    sb.from('user_minimi').select('look,bubble').maybeSingle(), sb.rpc('room_counts'), sb.rpc('guestbook_list')
+  ]);
   data.room = {
     ready: true, items: items.data || [], owned: (owned.data || []).map(row => row.item_id),
     placed: Object.fromEntries((placed.data || []).map(row => [row.slot, row.item_id])),
     objects: (objects.data || []).map(o => ({ ...o, x: Number(o.x), y: Number(o.y), scale: Number(o.scale) })),
     minimi: mini.error ? null : mini.data?.look || null,
-    minimiSay: mini.error ? '' : mini.data?.bubble || ''
+    minimiSay: mini.error ? '' : mini.data?.bubble || '',
+    counts: counts.error ? null : counts.data?.[0] || null,
+    guest: guest.error ? [] : guest.data || []
   };
   if (!data.room.objects.some(o => o.id === state.selectedObj)) state.selectedObj = null;
 }
@@ -576,14 +580,32 @@ function friendsPanel() {
   if (state.friends.error) return '<section class="panel"><div class="empty">친구 방을 불러오지 못했어요. (supabase-room.sql을 다시 실행해야 해요)</div></section>';
   if (!state.friends.rows.length) return '<section class="panel"><div class="empty">같은 반 친구가 아직 없어요. 친구가 가입하면 여기에서 방을 구경할 수 있어요.</div></section>';
   return `<section class="friend-grid">${state.friends.rows.map(row => row.is_teacher
-    ? `<article class="friend-room teacher-room"><strong>👩‍🏫 ${esc(/선생님$/.test(row.nickname) ? row.nickname : row.nickname + ' 선생님')}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, TEACHER_ROOM_ZOOM, row.minimi, row.minimi_say)}<small class="teacher-room-note">선생님 방을 보고 우리도 스티커를 모아 꾸며 봐요!</small></article>`
-    : `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, ROOM_ZOOM, row.minimi, row.minimi_say)}</article>`).join('')}</section>`;
+    ? `<article class="friend-room teacher-room"><strong>👩‍🏫 ${esc(/선생님$/.test(row.nickname) ? row.nickname : row.nickname + ' 선생님')}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, TEACHER_ROOM_ZOOM, row.minimi, row.minimi_say)}<small class="teacher-room-note">선생님 방을 보고 우리도 스티커를 모아 꾸며 봐요!</small><button class="primary-button visit-btn" data-action="visit-room" data-owner="${esc(row.owner_id)}">🏠 선생님 방에 놀러 가기</button></article>`
+    : `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, ROOM_ZOOM, row.minimi, row.minimi_say)}<button class="secondary-button visit-btn" data-action="visit-room" data-owner="${esc(row.owner_id)}">🏠 놀러 가기</button></article>`).join('')}</section>`;
+}
+async function loadVisit(countVisit) {   // 놀러 간 방의 방문자 수·방명록
+  const v = state.visit; if (!v || !sb) return;
+  const [counts, guest] = await Promise.all([
+    countVisit ? sb.rpc('visit_room', { p_owner: v.owner }) : sb.rpc('room_counts', { p_owner: v.owner }),
+    sb.rpc('guestbook_list', { p_owner: v.owner })
+  ]);
+  v.error = counts.error?.message || guest.error?.message || '';
+  v.counts = counts.data?.[0] || v.counts; v.guest = guest.data || [];
+}
+function visitPanel() {
+  const v = state.visit, row = state.friends?.rows?.find(r => r.owner_id === v?.owner);
+  if (!v || !row) return '<section class="panel"><div class="empty">친구 방을 찾지 못했어요.</div></section>';
+  const name = row.is_teacher ? (/선생님$/.test(row.nickname) ? row.nickname : `${row.nickname} 선생님`) : row.nickname;
+  const head = `<div class="visit-head"><h2>🏠 ${esc(name)}의 미니룸</h2><button class="ghost-button" data-action="visit-back">← 친구 목록</button></div>`;
+  const err = v.error ? `<p class="error">${esc(v.error)}</p>` : '';
+  return `${head}${roomCounterHtml(v.counts)}${roomScene(row.placed || {}, row.objects || [], true, row.is_teacher ? TEACHER_ROOM_ZOOM : ROOM_ZOOM, row.minimi, row.minimi_say)}${err}${guestbookHtml(v.guest, { write: true, title: `📒 ${esc(name)}의 방명록`, empty: '아직 방명록이 없어요. 첫 번째로 남겨 볼까요?' })}`;
 }
 function roomView() {
   const head = `<section class="page-title"><div><p class="eyebrow">MY ROOM</p><h1>내 방 꾸미기</h1><p class="subtitle">책을 읽고 받은 스티커로 방을 꾸며 보세요. 책 1권을 기록하면 스티커 1개를 받아요.</p></div><span class="sticker-wallet">⭐ 사용 가능 ${data.room?.ready ? stickersAvailable() : 0}개</span></section>`;
   if (!data.room?.ready) return layout(`${head}<section class="panel"><div class="empty">내 방을 불러오지 못했어요.<br>선생님께 문의해 주세요. (supabase-room.sql 실행 필요)</div></section>`, 'room');
   const modes = `${roomStyleSwitcher('room-style')}<div class="room-modes"><button class="slot-tab${state.roomMode === 'mine' ? ' active' : ''}" data-action="room-mode" data-mode="mine">🏠 내 방</button><button class="slot-tab${state.roomMode === 'friends' ? ' active' : ''}" data-action="room-mode" data-mode="friends">👫 친구 방 구경</button></div>`;
   if (state.roomMode === 'friends') return layout(`${head}${modes}${friendsPanel()}`, 'room');
+  if (state.roomMode === 'visit') return layout(`${head}${modes}${visitPanel()}`, 'room');
   const lv = LEVELS.indexOf(level());
   const tabs = ROOM_TABS.map(([key, label]) => `<button class="slot-tab${state.roomTab === key ? ' active' : ''}" data-action="room-tab" data-tab="${key}">${label}</button>`).join('');
   const isFurniture = state.roomTab === 'furniture';
@@ -597,7 +619,7 @@ function roomView() {
     return `<div class="shop-set"><h3>${name} <small>${group.length}종</small>${lock}</h3><div class="shop-grid">${group.map(roomItemCard).join('')}</div></div>`;
   }).join('');
   const empty = state.roomTab === 'pet' ? '펫은 곧 만나요! 🐾' : '아직 준비된 아이템이 없어요.';
-  return layout(`${head}${modes}${roomScene()}${objectBar()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p>${roomGifts(lv)}<section class="panel shop-panel"><div class="slot-tabs">${tabs}</div>${state.roomTab === 'minimi' ? minimiEditorHtml(data.room.minimi, data.room.objects.some(o => roomItemById(o.item_id)?.category === MINIMI_CATEGORY), data.room.minimiSay, data.records?.[0]?.title ? [`'${data.records[0].title}' 다 읽었다!`] : []) : `${filter}${sets || `<div class="empty">${empty}</div>`}`}</section>`, 'room');
+  return layout(`${head}${modes}${roomCounterHtml(data.room.counts, `${data.nickname}의 미니룸`)}${roomScene()}${objectBar()}${guestbookHtml(data.room.guest, { title: '📒 내 방명록', empty: '아직 방명록이 없어요. 친구에게 놀러 오라고 말풍선으로 알려 볼까요?' })}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p>${roomGifts(lv)}<section class="panel shop-panel"><div class="slot-tabs">${tabs}</div>${state.roomTab === 'minimi' ? minimiEditorHtml(data.room.minimi, data.room.objects.some(o => roomItemById(o.item_id)?.category === MINIMI_CATEGORY), data.room.minimiSay, data.records?.[0]?.title ? [`'${data.records[0].title}' 다 읽었다!`] : []) : `${filter}${sets || `<div class="empty">${empty}</div>`}`}</section>`, 'room');
 }
 
 // 방 안에서 아이템 끌기 · 모서리로 크기 조절
@@ -655,10 +677,15 @@ document.addEventListener('pointercancel', endDrag);
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
   const action = el?.dataset.action;
-  if (!['mm-save', 'room-style', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
+  if (!['visit-room', 'visit-back', 'gb-send', 'gb-del', 'mm-save', 'room-style', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
   if (action === 'room-style') { setRoomStyle(el.dataset.style); render(); return; }
   if (action === 'room-tab') { state.roomTab = el.dataset.tab; state.roomCat = null; render(); return; }
   if (action === 'room-filter') { state.roomCat = el.dataset.cat || null; render(); return; }
+  if (action === 'visit-room' && sb) {   // 친구 방에 놀러 가기: 방문을 세고 방명록을 불러와요
+    state.visit = { owner: el.dataset.owner, counts: null, guest: null, error: '' }; state.roomMode = 'visit'; gbDraft.msg = '';
+    render(); window.scrollTo(0, 0); await loadVisit(true); render(); return;
+  }
+  if (action === 'visit-back') { state.roomMode = 'friends'; state.visit = null; render(); return; }
   if (action === 'room-mode') {
     state.roomMode = el.dataset.mode;
     if (state.roomMode === 'friends' && sb) { state.friends = null; render(); await loadFriends(); }
@@ -668,7 +695,14 @@ document.addEventListener('click', async e => {
   roomBusy = true;
   try {
     const obj = data.room.objects.find(o => o.id === state.selectedObj);
-    if (action === 'mm-save') {   // 미니미 생김새 저장 + 방에 없으면 세우기
+    if (action === 'gb-send' && state.visit) {
+      const { error } = await sb.rpc('guestbook_write', { p_owner: state.visit.owner, p_stamp: gbDraft.stamp, p_message: gbDraft.msg.trim() }); if (error) throw error;
+      gbDraft.msg = ''; await loadVisit(false);
+    } else if (action === 'gb-del') {
+      if (!confirm('이 방명록을 지울까요?')) { roomBusy = false; return; }
+      const { error } = await sb.rpc('guestbook_delete', { p_id: el.dataset.id }); if (error) throw error;
+      if (state.roomMode === 'visit' && state.visit) await loadVisit(false); else await loadRoom();
+    } else if (action === 'mm-save') {   // 미니미 생김새 저장 + 방에 없으면 세우기
       const { error } = await sb.rpc('set_minimi', { p_look: minimiLook(mmEditor.draft || data.room.minimi), p_bubble: minimiSayClean(mmEditor.say ?? data.room.minimiSay) }); if (error) throw error;
       if (!data.room.objects.some(o => roomItemById(o.item_id)?.category === MINIMI_CATEGORY)) {
         const { data: newId, error: addError } = await sb.rpc('add_object', { p_item_id: MINIMI_ITEM_ID, p_x: 50, p_y: 66 }); if (addError) throw addError;

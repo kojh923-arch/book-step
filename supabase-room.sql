@@ -409,13 +409,13 @@ grant execute on function public.remove_object(uuid) to authenticated;
 -- 선생님 방(is_teacher = true)이 맨 앞에 나와요.
 drop function if exists public.classmate_rooms();
 create or replace function public.classmate_rooms()
-returns table (nickname text, is_teacher boolean, placed jsonb, objects jsonb, minimi jsonb, minimi_say text)
+returns table (owner_id uuid, nickname text, is_teacher boolean, placed jsonb, objects jsonb, minimi jsonb, minimi_say text)
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select p.nickname,
+  select p.id, p.nickname,
          (p.role = 'teacher'),
          coalesce((select jsonb_object_agg(ur.slot, ur.item_id) from public.user_room ur where ur.user_id = p.id), '{}'::jsonb),
          coalesce((select jsonb_agg(jsonb_build_object('item_id', o.item_id, 'x', o.x, 'y', o.y, 'scale', o.scale, 'flip', o.flip, 'z', o.z) order by o.z)
@@ -431,5 +431,135 @@ as $$
 $$;
 revoke execute on function public.classmate_rooms() from public, anon;
 grant execute on function public.classmate_rooms() to authenticated;
+
+-- ===== 미니룸 방문자 수(TODAY / TOTAL)와 방명록 =====
+-- 방문은 같은 사람이 하루(한국 시간)에 한 번만 세요. 방명록은 한 방에 하루 3개, 40자까지.
+-- 두 테이블 모두 직접 읽기·쓰기는 막고 아래 함수로만 써요.
+create table if not exists public.room_visits (
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  visitor_id uuid not null references auth.users(id) on delete cascade,
+  visit_date date not null default (now() at time zone 'Asia/Seoul')::date,
+  primary key (owner_id, visitor_id, visit_date)
+);
+create index if not exists room_visits_owner_date_idx on public.room_visits (owner_id, visit_date);
+create table if not exists public.room_guestbook (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  author_id uuid not null references auth.users(id) on delete cascade,
+  stamp text not null check (stamp in ('foot', 'heart', 'star', 'good', 'book', 'party')),
+  message text not null default '' check (char_length(message) <= 40),
+  created_at timestamptz not null default now()
+);
+create index if not exists room_guestbook_owner_idx on public.room_guestbook (owner_id, created_at desc);
+alter table public.room_visits enable row level security;
+alter table public.room_guestbook enable row level security;
+revoke all on public.room_visits, public.room_guestbook from anon, authenticated;
+
+-- 놀러 갈 수 있는 방인지: 같은 반 학생끼리, 학생 → 담임 선생님, 담임 선생님 → 우리 반 학생
+create or replace function public.room_can_visit(p_owner uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_owner is not null and auth.uid() is not null and p_owner <> auth.uid() and exists (
+    select 1 from public.profiles me, public.profiles o
+    where me.id = auth.uid() and o.id = p_owner and (
+      (me.role = 'student' and o.role = 'student' and me.class_id is not null and me.class_id = o.class_id)
+      or (me.role = 'student' and o.role = 'teacher' and exists (select 1 from public.classes c where c.id = me.class_id and c.teacher_id = o.id))
+      or (me.role = 'teacher' and o.role = 'student' and exists (select 1 from public.classes c where c.id = o.class_id and c.teacher_id = me.id))
+    ));
+$$;
+revoke execute on function public.room_can_visit(uuid) from public, anon, authenticated;
+
+create or replace function public.room_counts(p_owner uuid default null)
+returns table (today int, total int)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select count(*) filter (where v.visit_date = (now() at time zone 'Asia/Seoul')::date)::int, count(*)::int
+  from public.room_visits v
+  where v.owner_id = coalesce(p_owner, auth.uid())
+    and (coalesce(p_owner, auth.uid()) = auth.uid() or public.room_can_visit(p_owner));
+$$;
+revoke execute on function public.room_counts(uuid) from public, anon;
+grant execute on function public.room_counts(uuid) to authenticated;
+
+-- 친구 방에 놀러 가기: 오늘 처음이면 방문 1회로 세고, 방문자 수를 돌려줘요.
+create or replace function public.visit_room(p_owner uuid)
+returns table (today int, total int)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.room_can_visit(p_owner) then raise exception '놀러 갈 수 없는 방이에요.'; end if;
+  insert into public.room_visits (owner_id, visitor_id) values (p_owner, auth.uid()) on conflict do nothing;
+  return query select * from public.room_counts(p_owner);
+end;
+$$;
+revoke execute on function public.visit_room(uuid) from public, anon;
+grant execute on function public.visit_room(uuid) to authenticated;
+
+-- 방명록 보기 (최근 30개): 방 주인, 놀러 갈 수 있는 친구·선생님만
+drop function if exists public.guestbook_list(uuid);
+create or replace function public.guestbook_list(p_owner uuid default null)
+returns table (id uuid, nickname text, is_teacher boolean, stamp text, message text, created_at timestamptz, can_delete boolean)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select g.id, a.nickname, (a.role = 'teacher'), g.stamp, g.message, g.created_at,
+         (g.author_id = auth.uid() or g.owner_id = auth.uid()
+          or exists (select 1 from public.profiles o join public.classes c on c.id = o.class_id where o.id = g.owner_id and c.teacher_id = auth.uid()))
+  from public.room_guestbook g join public.profiles a on a.id = g.author_id
+  where g.owner_id = coalesce(p_owner, auth.uid())
+    and (coalesce(p_owner, auth.uid()) = auth.uid() or public.room_can_visit(p_owner))
+  order by g.created_at desc
+  limit 30;
+$$;
+revoke execute on function public.guestbook_list(uuid) from public, anon;
+grant execute on function public.guestbook_list(uuid) to authenticated;
+
+create or replace function public.guestbook_write(p_owner uuid, p_stamp text, p_message text default '')
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_msg text := btrim(regexp_replace(coalesce(p_message, ''), '[[:cntrl:]]', ' ', 'g'));
+begin
+  if not public.room_can_visit(p_owner) then raise exception '방명록을 남길 수 없는 방이에요.'; end if;
+  if p_stamp not in ('foot', 'heart', 'star', 'good', 'book', 'party') then raise exception '도장을 골라 주세요.'; end if;
+  if char_length(v_msg) > 40 then raise exception '한마디는 40자까지 쓸 수 있어요.'; end if;
+  perform pg_advisory_xact_lock(hashtext('guest:' || auth.uid()::text));
+  if (select count(*) from public.room_guestbook where owner_id = p_owner and author_id = auth.uid()
+      and created_at >= date_trunc('day', now() at time zone 'Asia/Seoul') at time zone 'Asia/Seoul') >= 3 then
+    raise exception '이 방에는 오늘 방명록을 3개까지 남길 수 있어요. 내일 또 놀러 와요!';
+  end if;
+  insert into public.room_visits (owner_id, visitor_id) values (p_owner, auth.uid()) on conflict do nothing;
+  insert into public.room_guestbook (owner_id, author_id, stamp, message) values (p_owner, auth.uid(), p_stamp, v_msg);
+end;
+$$;
+revoke execute on function public.guestbook_write(uuid, text, text) from public, anon;
+grant execute on function public.guestbook_write(uuid, text, text) to authenticated;
+
+-- 지우기: 쓴 사람, 방 주인, 그 학생의 담임 선생님
+create or replace function public.guestbook_delete(p_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from public.room_guestbook g
+  where g.id = p_id and (g.author_id = auth.uid() or g.owner_id = auth.uid()
+    or exists (select 1 from public.profiles o join public.classes c on c.id = o.class_id where o.id = g.owner_id and c.teacher_id = auth.uid()));
+$$;
+revoke execute on function public.guestbook_delete(uuid) from public, anon;
+grant execute on function public.guestbook_delete(uuid) to authenticated;
 
 notify pgrst, 'reload schema';

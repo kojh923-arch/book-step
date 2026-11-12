@@ -107,3 +107,31 @@ function roomSurfaceClass(wallColor, floorColor) {
   const plain = c => !c || /^#[0-9a-f]{3,8}$/i.test(String(c).trim());
   return `${plain(wallColor) ? ' wall-plain' : ''}${plain(floorColor) ? ' floor-plain' : ''}`;
 }
+
+// ---------- 방문자 수(TODAY / TOTAL)와 방명록 ----------
+const GB_STAMPS = [['foot', '👣', '다녀갔어요'], ['heart', '❤️', '방이 예뻐요'], ['star', '⭐', '멋져요'], ['good', '👍', '최고야'], ['book', '📚', '책 추천해 줘'], ['party', '🎉', '축하해']];
+const GB_MAX = 40;
+const gbDraft = { stamp: 'foot', msg: '' };
+const gbStamp = key => GB_STAMPS.find(s => s[0] === key) || GB_STAMPS[0];
+function roomCounterHtml(counts, owner = '') {
+  return `<div class="room-counter">${owner ? `<strong>${mmEsc(owner)}</strong>` : ''}<span>TODAY <b>${counts?.today ?? 0}</b></span><i></i><span>TOTAL <b>${counts?.total ?? 0}</b></span></div>`;
+}
+function gbTime(t) {
+  const d = new Date(t), m = Math.floor((Date.now() - d) / 60000);
+  if (m < 1) return '방금'; if (m < 60) return `${m}분 전`; if (m < 1440) return `${Math.floor(m / 60)}시간 전`;
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+}
+function guestbookHtml(entries, { write = false, title = '📒 방명록', empty = '아직 방명록이 없어요.' } = {}) {
+  const form = write ? `<div class="gb-form"><div class="gb-stamps">${GB_STAMPS.map(([key, emoji, label]) => `<button type="button" class="gb-stamp-btn${gbDraft.stamp === key ? ' active' : ''}" data-action="gb-stamp" data-stamp="${key}" title="${label}"><span>${emoji}</span><small>${label}</small></button>`).join('')}</div><div class="gb-write"><input id="gb-msg" maxlength="${GB_MAX}" value="${mmEsc(gbDraft.msg)}" placeholder="한마디 남기기 (${GB_MAX}자까지, 안 써도 돼요)" autocomplete="off" /><button type="button" class="primary-button" data-action="gb-send">남기기</button></div><small class="gb-rule">한 방에 하루 3개까지 남길 수 있어요. 친구가 기분 좋아지는 말로 남겨 주세요 😊</small></div>` : '';
+  const list = entries == null ? '<div class="empty">불러오는 중이에요…</div>'
+    : entries.length ? `<ul class="gb-list">${entries.map(e => { const [, emoji, label] = gbStamp(e.stamp); return `<li class="gb-item"><span class="gb-emoji">${emoji}</span><div class="gb-body"><b>${mmEsc(e.is_teacher && !/선생님$/.test(e.nickname) ? e.nickname + ' 선생님' : e.nickname)}</b><small>${gbTime(e.created_at)}</small><p>${mmEsc(e.message || label)}</p></div>${e.can_delete ? `<button type="button" class="ghost-button gb-del" data-action="gb-del" data-id="${mmEsc(e.id)}">지우기</button>` : ''}</li>`; }).join('')}</ul>`
+    : `<div class="empty">${empty}</div>`;
+  return `<section class="panel guestbook"><h3>${title}</h3>${form}${list}</section>`;
+}
+document.addEventListener('click', event => {
+  const el = event.target.closest('[data-action="gb-stamp"]');
+  if (!el) return;
+  gbDraft.stamp = el.dataset.stamp;
+  document.querySelectorAll('.gb-stamp-btn').forEach(b => b.classList.toggle('active', b === el));
+});
+document.addEventListener('input', event => { if (event.target.id === 'gb-msg') gbDraft.msg = event.target.value.slice(0, GB_MAX); });
