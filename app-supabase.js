@@ -491,10 +491,12 @@ async function loadRoom() {
     sb.from('room_objects').select('id,item_id,x,y,scale,flip,z').order('z')
   ]);
   if (items.error || owned.error || placed.error || objects.error) return;
+  const mini = await sb.from('user_minimi').select('look').maybeSingle();   // 미니미 생김새 (없어도 방은 열려요)
   data.room = {
     ready: true, items: items.data || [], owned: (owned.data || []).map(row => row.item_id),
     placed: Object.fromEntries((placed.data || []).map(row => [row.slot, row.item_id])),
-    objects: (objects.data || []).map(o => ({ ...o, x: Number(o.x), y: Number(o.y), scale: Number(o.scale) }))
+    objects: (objects.data || []).map(o => ({ ...o, x: Number(o.x), y: Number(o.y), scale: Number(o.scale) })),
+    minimi: mini.error ? null : mini.data?.look || null
   };
   if (!data.room.objects.some(o => o.id === state.selectedObj)) state.selectedObj = null;
 }
@@ -517,17 +519,17 @@ const placedCount = item => data.room.objects.filter(o => o.item_id === item.id)
 const clampNum = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 const TEACHER_ROOM_ZOOM = roomZoomFor(true); // 선생님 방은 1.4배, 학생 방은 1.25배 넓은 방 (아이템 크기는 그대로)
-function objectHtml(obj, readonly, zoom = 1) {
+function objectHtml(obj, readonly, zoom = 1, look = null) {
   const item = roomItemById(obj.item_id);
   if (!item?.img) return '';
   const selected = !readonly && state.selectedObj === obj.id;
   const handles = readonly ? '' : ['nw', 'ne', 'sw', 'se'].map(corner => `<i class="obj-handle h-${corner}" data-handle="${corner}"></i>`).join('');
-  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / zoom}%;z-index:${10 + Number(obj.z || 0)}"><img src="${esc(pixelSrc(item.img))}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />${handles}</div>`;
+  return `<div class="room-obj${selected ? ' selected' : ''}${readonly ? ' readonly' : ''}" data-oid="${esc(obj.id || '')}" style="left:${obj.x}%;top:${obj.y}%;width:${item.base_w * obj.scale / zoom}%;z-index:${10 + Number(obj.z || 0)}">${item.category === MINIMI_CATEGORY ? minimiStack(look, '', obj.flip) : `<img src="${esc(pixelSrc(item.img))}" alt="${esc(item.name)}" draggable="false" style="transform:scaleX(${obj.flip ? -1 : 1})" />`}${handles}</div>`;
 }
-function roomScene(placedMap = data.room.placed, objects = data.room.objects, readonly = false, zoom = ROOM_ZOOM) {
+function roomScene(placedMap = data.room.placed, objects = data.room.objects, readonly = false, zoom = ROOM_ZOOM, look = data.room?.minimi) {
   const wall = roomPlaced('wallpaper', placedMap), floor = roomPlaced('floor', placedMap);
   const style = `--wall:${esc(wall?.color || '#fff4dc')};--floor:${esc(floor?.color || '#e8c9a0')}`;
-  const objs = [...objects].sort((a, b) => a.z - b.z).map(obj => objectHtml(obj, readonly, zoom)).join('');
+  const objs = [...objects].sort((a, b) => a.z - b.z).map(obj => objectHtml(obj, readonly, zoom, look)).join('');
   const hint = !readonly && !objects.length ? '<p class="room-empty-hint">아래에서 아이템을 눌러 방에 놓아 보세요!</p>' : '';
   return `<div class="room${readonly ? ' room-mini' : ''}${roomStyleClass()}" ${readonly ? '' : 'id="room-stage"'} style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${roomBackdrop()}${objs}${hint}</div>`;
 }
@@ -573,8 +575,8 @@ function friendsPanel() {
   if (state.friends.error) return '<section class="panel"><div class="empty">친구 방을 불러오지 못했어요. (supabase-room.sql을 다시 실행해야 해요)</div></section>';
   if (!state.friends.rows.length) return '<section class="panel"><div class="empty">같은 반 친구가 아직 없어요. 친구가 가입하면 여기에서 방을 구경할 수 있어요.</div></section>';
   return `<section class="friend-grid">${state.friends.rows.map(row => row.is_teacher
-    ? `<article class="friend-room teacher-room"><strong>👩‍🏫 ${esc(/선생님$/.test(row.nickname) ? row.nickname : row.nickname + ' 선생님')}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, TEACHER_ROOM_ZOOM)}<small class="teacher-room-note">선생님 방을 보고 우리도 스티커를 모아 꾸며 봐요!</small></article>`
-    : `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, ROOM_ZOOM)}</article>`).join('')}</section>`;
+    ? `<article class="friend-room teacher-room"><strong>👩‍🏫 ${esc(/선생님$/.test(row.nickname) ? row.nickname : row.nickname + ' 선생님')}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, TEACHER_ROOM_ZOOM, row.minimi)}<small class="teacher-room-note">선생님 방을 보고 우리도 스티커를 모아 꾸며 봐요!</small></article>`
+    : `<article class="friend-room"><strong>${esc(row.nickname)}의 방</strong>${roomScene(row.placed || {}, row.objects || [], true, ROOM_ZOOM, row.minimi)}</article>`).join('')}</section>`;
 }
 function roomView() {
   const head = `<section class="page-title"><div><p class="eyebrow">MY ROOM</p><h1>내 방 꾸미기</h1><p class="subtitle">책을 읽고 받은 스티커로 방을 꾸며 보세요. 책 1권을 기록하면 스티커 1개를 받아요.</p></div><span class="sticker-wallet">⭐ 사용 가능 ${data.room?.ready ? stickersAvailable() : 0}개</span></section>`;
@@ -594,7 +596,7 @@ function roomView() {
     return `<div class="shop-set"><h3>${name} <small>${group.length}종</small>${lock}</h3><div class="shop-grid">${group.map(roomItemCard).join('')}</div></div>`;
   }).join('');
   const empty = state.roomTab === 'pet' ? '펫은 곧 만나요! 🐾' : '아직 준비된 아이템이 없어요.';
-  return layout(`${head}${modes}${roomScene()}${objectBar()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p>${roomGifts(lv)}<section class="panel shop-panel"><div class="slot-tabs">${tabs}</div>${filter}${sets || `<div class="empty">${empty}</div>`}</section>`, 'room');
+  return layout(`${head}${modes}${roomScene()}${objectBar()}<p class="subtitle room-hint">선생님 도장 3개마다 스티커 1개를 더 받아요. (지금 도장 ${Object.keys(data.feedback || {}).length}개)</p>${roomGifts(lv)}<section class="panel shop-panel"><div class="slot-tabs">${tabs}</div>${state.roomTab === 'minimi' ? minimiEditorHtml(data.room.minimi, data.room.objects.some(o => roomItemById(o.item_id)?.category === MINIMI_CATEGORY)) : `${filter}${sets || `<div class="empty">${empty}</div>`}`}</section>`, 'room');
 }
 
 // 방 안에서 아이템 끌기 · 모서리로 크기 조절
@@ -652,7 +654,7 @@ document.addEventListener('pointercancel', endDrag);
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
   const action = el?.dataset.action;
-  if (!['room-style', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
+  if (!['mm-save', 'room-style', 'room-tab', 'room-filter', 'buy-item', 'place-item', 'clear-slot', 'room-mode', 'add-object', 'flip-obj', 'front-obj', 'remove-obj'].includes(action)) return;
   if (action === 'room-style') { setRoomStyle(el.dataset.style); render(); return; }
   if (action === 'room-tab') { state.roomTab = el.dataset.tab; state.roomCat = null; render(); return; }
   if (action === 'room-filter') { state.roomCat = el.dataset.cat || null; render(); return; }
@@ -665,9 +667,16 @@ document.addEventListener('click', async e => {
   roomBusy = true;
   try {
     const obj = data.room.objects.find(o => o.id === state.selectedObj);
-    if (action === 'flip-obj' && obj) {
+    if (action === 'mm-save') {   // 미니미 생김새 저장 + 방에 없으면 세우기
+      const { error } = await sb.rpc('set_minimi', { p_look: minimiLook(mmEditor.draft || data.room.minimi) }); if (error) throw error;
+      if (!data.room.objects.some(o => roomItemById(o.item_id)?.category === MINIMI_CATEGORY)) {
+        const { data: newId, error: addError } = await sb.rpc('add_object', { p_item_id: MINIMI_ITEM_ID, p_x: 50, p_y: 66 }); if (addError) throw addError;
+        state.selectedObj = newId;
+      }
+      await loadRoom();
+    } else if (action === 'flip-obj' && obj) {
       obj.flip = !obj.flip;
-      const img = document.querySelector(`.room-obj[data-oid="${obj.id}"] img`);
+      const img = document.querySelector(`.room-obj[data-oid="${obj.id}"] > :first-child`);
       if (img) img.style.transform = `scaleX(${obj.flip ? -1 : 1})`;
       await saveObject(obj);
     } else if (action === 'front-obj' && obj) {

@@ -660,3 +660,24 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .admin-table { width: 100%; border-collapse: collapse; }
 .admin-table th, .admin-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #eeeaff; vertical-align: top; }
 .admin-table th { color: #7b7a99; font-size: .85rem; white-space: nowrap; }
+
+/* 미니미: 부위별 그림을 겹쳐 그려요 */
+.minimi-stack { position: relative; display: block; width: 100%; }
+.minimi-stack img { display: block; width: 100%; height: auto; pointer-events: none; -webkit-user-drag: none; }
+.minimi-stack img + img { position: absolute; inset: 0; }
+.room-dot .room-obj .minimi-stack { filter: drop-shadow(3px 3px 0 rgba(60, 40, 20, .18)); }
+.minimi-editor { display: grid; grid-template-columns: 220px 1fr; gap: 18px; align-items: start; margin-top: 12px; padding: 16px; background: #fffaf3; }
+.mm-preview { display: flex; flex-direction: column; align-items: center; gap: 8px; position: sticky; top: 12px; padding: 14px; border-radius: 18px; background: repeating-conic-gradient(#eaf6ff 0 25%, #dcefff 0 50%) 0 0 / 16px 16px; border: 3px solid #3b2f2f; }
+.mm-preview .minimi-stack.big { width: 150px; }
+.mm-preview button { width: 100%; }
+.mm-preview small { color: var(--muted); font-weight: 700; text-align: center; }
+.mm-groups { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.mm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+.mm-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border: 2px solid var(--line); border-radius: 14px; background: #fff; cursor: pointer; font: inherit; }
+.mm-card:hover { border-color: var(--blue); }
+.mm-card.active { border-color: var(--orange); background: #fff4e6; box-shadow: 0 0 0 2px rgba(255, 140, 90, .25); }
+.mm-card .minimi-stack.thumb { width: 64px; }
+.mm-card b { font-size: 12px; }
+.mm-swatch i { display: block; width: 46px; height: 46px; border-radius: 50%; border: 3px solid #3b2f2f; }
+.mm-note { margin: 0 0 10px; font-size: 13px; color: var(--muted); font-weight: 700; }
+@media (max-width: 640px) { .minimi-editor { grid-template-columns: 1fr; } .mm-preview { position: static; } }

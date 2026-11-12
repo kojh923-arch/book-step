@@ -32,3 +32,58 @@ function pixelSrc(src) {
   const m = /^assets\/room\/([a-z0-9_]+)\.png/.exec(src);
   return m && DOT_ITEMS.has(m[1]) ? `assets/room/dot/${m[1]}.png?v=3` : src;
 }
+
+// ---------- 미니미 옷 입히기 ----------
+// 부위별 그림(assets/room/dot/minimi/)을 겹쳐서 그려요. 선택지는 minimi-data.js (scripts/cyroom_minimi.py가 만들어요)
+// 방에는 'minimi' 아이템 하나가 서 있고, 생김새(look)는 user_minimi 테이블에 따로 저장돼요.
+const MM = window.MINIMI_DATA || null;
+const MINIMI_ITEM_ID = 'minimi';
+const MM_GROUPS = [['preset', '⭐ 캐릭터'], ['hair', '💇 머리'], ['hairColor', '🎨 머리색'], ['face', '😊 얼굴'], ['skin', '🙂 피부'],
+  ['top', '👕 옷'], ['bottom', '👖 하의'], ['hat', '🎀 모자·장식'], ['glasses', '👓 안경'], ['hand', '✋ 손에 든 것']];
+const mmEditor = { draft: null, group: 'preset' };
+const mmEsc = v => String(v ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
+
+function minimiLook(look) {
+  if (!MM) return {};
+  const base = MM.presets[0][1], out = {};
+  for (const key of Object.keys(base)) out[key] = (MM[key] || []).some(o => o[0] === look?.[key]) ? look[key] : base[key];
+  return out;
+}
+function minimiLayers(look) {
+  const L = minimiLook(look), n = [];
+  if (MM.hairBack.includes(L.hair)) n.push(`hairb_${L.hair}_${L.hairColor}`);
+  n.push(`body_${L.skin}`);
+  if (!MM.covers.includes(L.top)) n.push(`bottom_${L.bottom}`);
+  n.push(`top_${L.top}`, `face_${L.face}`);
+  if (L.glasses !== 'none') n.push(`glasses_${L.glasses}`);
+  n.push(`hairf_${L.hair}_${L.hairColor}`);
+  if (L.hat !== 'none') n.push(`hat_${L.hat}`);
+  if (L.hand !== 'none') n.push(`hand_${L.hand}`);
+  return n.map(name => `assets/room/dot/minimi/${name}.png?v=${MM.version}`);
+}
+function minimiStack(look, cls = '', flip = false) {
+  if (!MM) return '';
+  return `<span class="minimi-stack ${cls}"${flip ? ' style="transform:scaleX(-1)"' : ''}>${minimiLayers(look).map(src => `<img src="${src}" alt="" draggable="false" />`).join('')}</span>`;
+}
+function minimiEditorHtml(savedLook, standing) {
+  if (!MM) return '<div class="empty">미니미를 불러오지 못했어요.</div>';
+  const draft = mmEditor.draft = minimiLook(mmEditor.draft || savedLook);
+  const g = mmEditor.group;
+  const groups = MM_GROUPS.map(([key, label]) => `<button type="button" class="chip${g === key ? ' active' : ''}" data-action="mm-group" data-group="${key}">${label}</button>`).join('');
+  let cards;
+  if (g === 'preset') cards = MM.presets.map(([name, look], i) => `<button type="button" class="mm-card" data-action="mm-preset" data-index="${i}">${minimiStack(look, 'thumb')}<b>${mmEsc(name)}</b></button>`).join('');
+  else if (g === 'skin' || g === 'hairColor') cards = MM[g].map(([key, name, color]) => `<button type="button" class="mm-card mm-swatch${draft[g] === key ? ' active' : ''}" data-action="mm-pick" data-group="${g}" data-value="${key}"><i style="background:${color}"></i><b>${mmEsc(name)}</b></button>`).join('');
+  else cards = MM[g].map(([key, name]) => `<button type="button" class="mm-card${draft[g] === key ? ' active' : ''}" data-action="mm-pick" data-group="${g}" data-value="${key}">${minimiStack({ ...draft, [g]: key }, 'thumb')}<b>${mmEsc(name)}</b></button>`).join('');
+  const note = g === 'bottom' && MM.covers.includes(draft.top) ? '<p class="mm-note">지금 옷(원피스·로브 등)이 하의를 덮고 있어요.</p>' : '';
+  return `<section class="panel minimi-editor"><div class="mm-preview">${minimiStack(draft, 'big')}<button type="button" class="primary-button" data-action="mm-save">💾 저장하고 방에 세우기</button><button type="button" class="ghost-button" data-action="mm-reset">처음으로 되돌리기</button><small>${standing ? '방에 서 있는 미니미가 바로 바뀌어요.' : '저장하면 방 가운데에 미니미가 서요.'}</small></div><div class="mm-options"><div class="mm-groups">${groups}</div>${note}<div class="mm-grid">${cards}</div></div></section>`;
+}
+document.addEventListener('click', event => {
+  const el = event.target.closest('[data-action^="mm-"]');
+  const action = el?.dataset.action;
+  if (!action || action === 'mm-save') return;
+  if (action === 'mm-group') mmEditor.group = el.dataset.group;
+  else if (action === 'mm-preset') mmEditor.draft = minimiLook(MM.presets[Number(el.dataset.index)][1]);
+  else if (action === 'mm-pick') mmEditor.draft = minimiLook({ ...mmEditor.draft, [el.dataset.group]: el.dataset.value });
+  else if (action === 'mm-reset') mmEditor.draft = null;
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+});

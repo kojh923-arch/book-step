@@ -140,22 +140,47 @@ on conflict (id) do update set
   unlock_level = excluded.unlock_level, reward_level = excluded.reward_level, category = excluded.category,
   img = excluded.img, base_w = excluded.base_w;
 
--- 미니미 (싸이월드풍 도트 캐릭터). 모두 무료이고 방에 하나만 세워요. 그림: scripts/cyroom_minimi.py
+-- 미니미: 방에 서는 캐릭터 아이템 하나. 생김새(머리·옷·모자 등)는 user_minimi에 따로 저장해요.
 insert into public.room_items (id, name, emoji, color, slot, price, unlock_level, reward_level, category, img, base_w) values
-  ('minimi_reader', '책 읽는 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_reader.png?v=1', 7),
-  ('minimi_ribbon', '리본 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_ribbon.png?v=1', 7),
-  ('minimi_pigtail', '양갈래 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_pigtail.png?v=1', 7),
-  ('minimi_student', '교복 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_student.png?v=1', 7),
-  ('minimi_cap', '모자 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_cap.png?v=1', 7),
-  ('minimi_bear', '곰돌이 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_bear.png?v=1', 7),
-  ('minimi_cat', '고양이 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_cat.png?v=1', 7),
-  ('minimi_curly', '곱슬머리 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_curly.png?v=1', 7),
-  ('minimi_spiky', '뾰족머리 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_spiky.png?v=1', 7),
-  ('minimi_wizard', '마법사 친구', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_wizard.png?v=1', 7),
-  ('minimi_king', '독서왕', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_king.png?v=1', 7),
-  ('minimi_teacher', '선생님', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi_teacher.png?v=1', 7)
+  ('minimi', '미니미', '', null, 'object', 0, 0, null, 'minimi', 'assets/room/dot/minimi/preview.png?v=1', 11)
 on conflict (id) do update set
   name = excluded.name, category = excluded.category, img = excluded.img, base_w = excluded.base_w;
+
+create table if not exists public.user_minimi (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  look jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.user_minimi enable row level security;
+drop policy if exists "user_minimi own read" on public.user_minimi;
+create policy "user_minimi own read" on public.user_minimi for select to authenticated using (user_id = (select auth.uid()));
+revoke all on public.user_minimi from anon;
+revoke insert, update, delete, truncate, trigger, references on public.user_minimi from authenticated;
+grant select on public.user_minimi to authenticated;
+
+-- 미니미 생김새 저장: 정해진 항목 이름과 짧은 영문 값만 받아요.
+create or replace function public.set_minimi(p_look jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare k text; v jsonb;
+begin
+  if auth.uid() is null then raise exception '로그인이 필요해요.'; end if;
+  if jsonb_typeof(p_look) is distinct from 'object' or length(p_look::text) > 600 then raise exception '미니미 정보가 올바르지 않아요.'; end if;
+  for k, v in select * from jsonb_each(p_look) loop
+    if k not in ('skin', 'face', 'hair', 'hairColor', 'top', 'bottom', 'hat', 'glasses', 'hand')
+       or jsonb_typeof(v) <> 'string' or (v #>> '{}') !~ '^[a-z_]{1,20}$' then
+      raise exception '미니미 정보가 올바르지 않아요.';
+    end if;
+  end loop;
+  insert into public.user_minimi (user_id, look, updated_at) values (auth.uid(), p_look, now())
+  on conflict (user_id) do update set look = excluded.look, updated_at = now();
+end;
+$$;
+revoke execute on function public.set_minimi(jsonb) from public, anon;
+grant execute on function public.set_minimi(jsonb) to authenticated;
 
 -- 책 권수 → 레벨 번호 (앱의 LEVELS와 같은 기준: 0,5,10,20,40,60,80,100,130,160,200권)
 create or replace function public.room_level(p_books int)
@@ -349,7 +374,7 @@ grant execute on function public.remove_object(uuid) to authenticated;
 -- 선생님 방(is_teacher = true)이 맨 앞에 나와요.
 drop function if exists public.classmate_rooms();
 create or replace function public.classmate_rooms()
-returns table (nickname text, is_teacher boolean, placed jsonb, objects jsonb)
+returns table (nickname text, is_teacher boolean, placed jsonb, objects jsonb, minimi jsonb)
 language sql
 stable
 security definer
@@ -359,7 +384,8 @@ as $$
          (p.role = 'teacher'),
          coalesce((select jsonb_object_agg(ur.slot, ur.item_id) from public.user_room ur where ur.user_id = p.id), '{}'::jsonb),
          coalesce((select jsonb_agg(jsonb_build_object('item_id', o.item_id, 'x', o.x, 'y', o.y, 'scale', o.scale, 'flip', o.flip, 'z', o.z) order by o.z)
-                   from public.room_objects o where o.user_id = p.id), '[]'::jsonb)
+                   from public.room_objects o where o.user_id = p.id), '[]'::jsonb),
+         (select um.look from public.user_minimi um where um.user_id = p.id)
   from public.profiles p, (select class_id from public.profiles where id = auth.uid()) me
   where me.class_id is not null
     and p.id <> auth.uid()
