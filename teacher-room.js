@@ -43,7 +43,7 @@ function troomScene() {
   const style = `--wall:${escapeHtml(wall?.color || '#fff4dc')};--floor:${escapeHtml(floor?.color || '#e8c9a0')}`;
   const objs = [...troom.objects].sort((a, b) => a.z - b.z).map(troomObjHtml).join('');
   const hint = troom.objects.length ? '' : '<p class="room-empty-hint">아래에서 아이템을 눌러 방에 놓아 보세요!</p>';
-  return `<div class="room${roomStyleClass()}" id="troom-stage" style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${roomBackdrop()}${objs}${hint}</div>`;
+  return `<div class="room${roomStyleClass()}${roomSurfaceClass(wall?.color, floor?.color)}" id="troom-stage" style="${style}"><div class="room-wall"></div><div class="room-floor"></div>${roomBackdrop()}${objs}${hint}</div>`;
 }
 function troomBar() {
   const obj = troom.objects.find(o => o.id === troom.selected);
