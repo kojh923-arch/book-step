@@ -645,7 +645,8 @@ body { background: radial-gradient(circle at 8% 5%, rgba(255, 219, 172, .42) 0 7
 .room.room-dot { background: repeating-conic-gradient(#e9f5ff 0 25%, #dcefff 0 50%) 0 0 / 16px 16px; }
 .room-dot .cy-wall::after, .room-dot .cy-floor::after { content: ""; position: absolute; inset: 0; }
 .room-dot.wall-plain .cy-wall::after { background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .22) 0 6px, transparent 6px 14px); }
-.room-dot.floor-plain .cy-floor::after { background: repeating-linear-gradient(159.6deg, rgba(90, 55, 25, .16) 0 2px, transparent 2px 20px); }
+/* 단색 바닥의 마루 선: 마름모 바닥 층 안에 그려서 벽과 나란하게(다른 벽과는 직각) 깔려요 */
+.room-dot.floor-plain .cy-floor::before { background: repeating-linear-gradient(0deg, rgba(90, 55, 25, .17) 0 2px, transparent 2px 24px), var(--floor); }
 .room-dot .room-obj img { filter: drop-shadow(3px 3px 0 rgba(60, 40, 20, .18)); }
 .room-dot .cy-lines { stroke: #3b2f2f; stroke-width: 2; }
 
