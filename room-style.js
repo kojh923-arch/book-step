@@ -28,5 +28,5 @@ const DOT_ITEMS = new Set(['acoustic_guitar', 'air_purifier', 'blanket_basket', 
 function pixelSrc(src) {
   if (getRoomStyle() !== 'dot' || !src) return src;
   const m = /^assets\/room\/([a-z0-9_]+)\.png/.exec(src);
-  return m && DOT_ITEMS.has(m[1]) ? `assets/room/dot/${m[1]}.png?v=1` : src;
+  return m && DOT_ITEMS.has(m[1]) ? `assets/room/dot/${m[1]}.png?v=2` : src;
 }

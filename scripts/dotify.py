@@ -5,11 +5,11 @@ from PIL import Image, ImageEnhance, ImageFilter
 sql = open('supabase-room.sql', encoding='utf-8').read()
 base_w = {m[0]: float(m[1]) for m in re.findall(r"'assets/room/([a-z0-9_]+)\.png[^']*',\s*([\d.]+)\)", sql)}
 out = 'assets/room/dot'; os.makedirs(out, exist_ok=True)
-PX = 3.2      # 방 폭 1%당 도트 칸 수 (모든 아이템이 같은 도트 크기)
-UP = 8        # 저장 배율 (블록이 또렷하게)
+PX = 6.0      # 방 폭 1%당 도트 칸 수 (모든 아이템이 같은 도트 크기). 높을수록 촘촘해요
+UP = 4        # 저장 배율 (블록이 또렷하게)
 def dotify(path, name):
     im = Image.open(path).convert('RGBA')
-    gw = max(22, round(base_w.get(name, 12) * PX))
+    gw = min(im.width, max(40, round(base_w.get(name, 12) * PX)))
     gh = max(1, round(im.height * gw / im.width))
     # 프리멀티플라이드 평균 축소 → 가장자리 색 번짐 방지
     r, g, b, a = im.split()
@@ -21,10 +21,10 @@ def dotify(path, name):
         for x in range(gw):
             al = pa[x, y]
             if al: q[x, y] = tuple(min(255, round(c * 255 / al)) for c in px[x, y])
-    rgb = ImageEnhance.Color(rgb).enhance(1.18); rgb = ImageEnhance.Contrast(rgb).enhance(1.08)
+    rgb = ImageEnhance.Color(rgb).enhance(1.1); rgb = ImageEnhance.Contrast(rgb).enhance(1.05)
     mask = small_a.point(lambda v: 255 if v >= 110 else 0)
     # 아이템별 팔레트 (색 수 제한, 디더링 없음)
-    n = 20 if gw < 40 else 28
+    n = 40 if gw < 70 else 56
     pal = rgb.quantize(colors=n, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).convert('RGB')
     res = Image.new('RGBA', (gw, gh), (0, 0, 0, 0))
     res.paste(pal, (0, 0), mask)
@@ -36,7 +36,7 @@ def dotify(path, name):
             if s[x, y][3]: continue
             nb = [s[x+dx, y+dy] for dx, dy in ((1,0),(-1,0),(0,1),(0,-1)) if 0 <= x+dx < W and 0 <= y+dy < H and s[x+dx, y+dy][3]]
             if nb:
-                c = nb[0]; d[x, y] = (int(c[0]*.38), int(c[1]*.33), int(c[2]*.36), 255)
+                c = nb[0]; d[x, y] = (int(c[0]*.5), int(c[1]*.45), int(c[2]*.48), 255)
     res = res.resize((W * UP, H * UP), Image.NEAREST)
     res.save(f'{out}/{name}.png', optimize=True)
     return W, H
