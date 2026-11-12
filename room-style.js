@@ -32,13 +32,14 @@ function pixelSrc(src, back = false) {
   if (getRoomStyle() !== 'dot' || !src) return src;
   const m = /^assets\/room\/([a-z0-9_]+)\.png/.exec(src);
   if (!m || !DOT_ITEMS.has(m[1])) return src;
-  return back && roomCanTurnId(m[1]) ? `assets/room/dot/${m[1]}_back.png?v=1` : `assets/room/dot/${m[1]}.png?v=3`;
+  return back && roomCanTurnId(m[1]) ? `assets/room/dot/${m[1]}_back.png?v=2` : `assets/room/dot/${m[1]}.png?v=4`;
 }
 
 // ---------- 돌리기(네 방향)와 벽에 딱 붙이기 ----------
 // 방향이 있는 아이템(의자·책상 등)은 앞모습/뒷모습 × 좌우 반전으로 네 방향을 돌려요. 그림 정보: room-dot-data.js
 const RD = window.ROOM_DOT || { back: [], wall: [], anchors: {} };
 const ROOM_H = 708 / 875;   // 방 세로/가로 비율 (styles.css의 aspect-ratio와 같아요)
+const SNAP_CATEGORIES = ['furniture', 'seat', 'decor'];   // 조명은 무드 등처럼 가구 위에 올리는 것도 있어서 빼요
 const TURN_STEPS = [[false, false], [true, false], [false, true], [true, true]];
 const roomItemKey = item => /^assets\/room\/([a-z0-9_]+)\.png/.exec(item?.img || '')?.[1] || null;
 function roomCanTurnId(id) { return RD.back.includes(id); }
@@ -50,7 +51,8 @@ function nextTurn(obj) {
 // 아이템의 뒤쪽 바닥 모서리가 벽선 가까이(방 폭의 3.5% 안) 오면 벽에 딱 붙여요. 붙일 곳이 없으면 null
 function roomSnap(obj, item, zoom) {
   const id = roomItemKey(item);
-  if (!id || RD.wall.includes(id) || item.category === 'wall') return null;
+  // 바닥에 놓는 큰 가구만 붙여요 (책상 위에 올리는 노트북·문구 같은 소품은 그대로)
+  if (!id || RD.wall.includes(id) || !SNAP_CATEGORIES.includes(item.category)) return null;
   const an = RD.anchors[obj.back && roomCanTurnId(id) ? `${id}_back` : id];
   if (!an) return null;
   const [fx0, fy, aspect] = an, fx = obj.flip ? 1 - fx0 : fx0;
