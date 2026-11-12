@@ -1,3 +1,4 @@
+// ===== 상수: 미션 질문 목록, 추천 도서 목록 =====
 const MISSIONS = [
   ['감정과 공감', '주인공의 기분은 어땠을까요?'],
   ['감정과 공감', '주인공에게 해주고 싶은 말은 무엇인가요?'],
@@ -30,11 +31,6 @@ const MISSIONS = [
   ['나와 연결하기', '이 책을 읽고 가장 궁금해진 점은 무엇인가요?'],
   ['나와 연결하기', '이 책을 읽기 전의 나에게 한마디 해 준다면 무엇이라고 말할까요?']
 ];
-const LEVELS = [
-  [0, '독서 준비생', '🌰'], [5, '책 첫걸음', '🌱'], [10, '책 새싹', '🌱'], [20, '독서 탐험가', '🌿'],
-  [40, '열정 독서가', '🌿'], [60, '이야기 수집가', '🪴'], [80, '독서 여행자', '🪴'], [100, '책의 친구', '🌳'],
-  [130, '지식 탐험가', '🌳'], [160, '독서 고수', '📖'], [200, '책 마스터', '🏆']
-];
 const localKey = 'read-step-local-v2';
 const cfg = window.SUPABASE_CONFIG || {};
 const supabaseReady = Boolean(cfg.url && cfg.anonKey && window.supabase);
@@ -59,12 +55,14 @@ const RECOMMENDATION_POOLS = {
     '보물섬', '파랑새', '소공녀', '몽실 언니', '우리들의 일그러진 영웅'
   ].map(title => [title, '', '고학년이 생각을 넓히고 깊이 읽어 볼 만한 추천 도서예요.'])
 };
+// ===== 앱 상태(state): 화면 전환·입력값 등 임시 상태 =====
 const state = { view: 'home', authMode: 'login', pendingBook: null, mission: null, rating: 0, selectedRecord: null, editingId: null, error: '', levelUp: null, bookQuery: '', bookAuthor: '', selectedBookInfo: null, bookDescriptionExpanded: false, bookResults: [], bookSearchError: '', bookSearching: false, recommendations: [], recommendationsLoaded: false, recommendationLoading: false, school: null, schoolQuery: '', schoolResults: [], schoolSearching: false, schoolSearched: false, schoolError: '', schoolSample: false, grade: '', classNo: '', draft: { nickname: '', password: '', classCode: '' } };
 
 try { state.draft.classCode = localStorage.getItem('bookstep-class-code') || ''; } catch {}
 const SCHOOL_SEARCH_FUNCTION = 'neis-school-search';
 const isLocalHost = ['localhost', '127.0.0.1'].includes(location.hostname);
 const gradeCount = () => 6;
+// ===== 학교 검색 (회원가입) =====
 async function fetchSchools(query) {
   if (isLocalHost) {
     const res = await fetch(`/__neis?q=${encodeURIComponent(query)}`);
@@ -103,19 +101,11 @@ function schoolFields() {
   const classRow = s ? `<div class="field-row"><div class="field"><label for="grade">학년</label><select id="grade" required><option value="">선택</option>${grades}</select></div><div class="field"><label for="class-no">반</label><select id="class-no" required><option value="">선택</option>${classes}</select></div></div>` : '';
   return `<div class="field"><label>학교</label>${picker}</div>${classRow}`;
 }
+// ===== 데이터(data)와 Supabase 읽기·쓰기: 기록, 프로필, 책 검색, 가입 =====
 let data = { nickname: '', records: [], feedback: {}, challenges: [], ranking: [], bonus: 0 };
 
-const esc = (v = '') => String(v).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const bookVisual = (record, className = 'record-book-icon') => record.cover_image ? `<span class="${className} record-book-cover"><img src="${esc(record.cover_image)}" alt="${esc(record.title)} 표지" /></span>` : `<span class="${className}">📕</span>`;
 const stars = n => '★'.repeat(Number(n || 0)) + '☆'.repeat(5 - Number(n || 0));
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-// 학급코드가 있으면 학급별 로그인 ID(student2-), 없으면 예전 방식(student-)을 씁니다.
-const loginEmail = (nickname, classCode = '') => {
-  const code = String(classCode || '').trim().toUpperCase();
-  const encoded = btoa(unescape(encodeURIComponent(code ? `${code}:${nickname.trim()}` : nickname.trim()))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  return `${code ? 'student2' : 'student'}-${encoded}@bookstep.local`;
-};
-const levelForCount = count => LEVELS.reduce((r, x) => count >= x[0] ? x : r, LEVELS[0]);
 const levelIcon = item => `<span class="growth-symbol growth-symbol-${LEVELS.indexOf(item)}" aria-hidden="true">${item[2]}</span>`;
 const level = () => levelForCount(data.records.length);
 const nextLevel = () => LEVELS.find(x => x[0] > data.records.length) || LEVELS.at(-1);
@@ -190,7 +180,7 @@ async function fetchBooks(query) {
   if (error) throw new Error(error.message || '도서를 검색하지 못했어요.');
   return result?.items || [];
 }
-async function searchNaverBooks(query) {
+async function searchBooks(query) {
   state.bookSearching = true;
   state.bookSearchError = '';
   state.selectedBookInfo = null;
@@ -232,6 +222,7 @@ async function registerStudent(nickname, password, classCode, classInfo = {}) {
   if (!response.ok) throw new Error(result.error || '회원가입에 실패했어요.');
 }
 
+// ===== 화면 그리기: 홈, 로그인, 기록, 저장 내역, 성장 현황 (layout이 공통 틀) =====
 function layout(content, active = 'home') { return `<div class="shell"><div class="container"><header class="topbar"><div class="brand"><span class="brand-mark"><img src="assets/dokseo-hangeoreum-logo.png" alt="독서한걸음 로고" /></span><div>독서한걸음<small>${esc(data.nickname)}님의 독서 기록</small></div></div><div class="topbar-actions"><button class="ghost-button" data-action="logout">로그아웃</button></div></header><nav class="nav-tabs"><button class="${active === 'home' ? 'active' : ''}" data-view="home">홈</button><button class="${active === 'record' ? 'active' : ''}" data-view="record">독서 기록</button><button class="${active === 'history' ? 'active' : ''}" data-view="history">저장 내역</button><button class="${active === 'shelf' ? 'active' : ''}" data-view="shelf">내 책장</button><button class="${active === 'growth' ? 'active' : ''}" data-view="growth">성장 현황</button><button class="${active === 'room' ? 'active' : ''}" data-view="room">내 방</button></nav>${content}</div></div>`; }
 function homeRecommendations() {
   const cards = state.recommendationLoading || !state.recommendations.length
@@ -255,7 +246,7 @@ function recordForm() {
   const dupNote = dup ? `<div class="dup-note">📌 이 책은 ${esc(String(dup.read_date || dup.date).slice(0, 10))}에 이미 기록했어요. 또 읽었다면 그대로 기록해도 돼요.</div>` : '';
   return layout(`<section class="page-title"><div><p class="eyebrow">BOOK RECORD</p><h1>읽은 책을 기록해요.</h1><p class="subtitle">책을 검색해 간편하게 기록하거나 직접 입력할 수 있어요.</p></div></section><form class="form-card" id="book-form"><div class="form-grid"><div class="field full"><label for="title">책 제목</label><div class="book-search-input"><input id="title" required value="${esc(state.bookQuery)}" placeholder="예: 마당을 나온 암탉" /><button class="secondary-button" type="button" data-action="search-books">🔎 책 검색</button></div>${results}${preview}${dupNote}</div><div class="field"><label for="author">저자</label><input id="author" required value="${esc(state.bookAuthor)}" placeholder="예: 황선미" /></div><div class="field"><label for="date">읽은 날짜</label><input id="date" type="date" value="${today()}" required /></div><div class="field full"><label>내 별점</label><div class="rating">${[1,2,3,4,5].map(n => `<button type="button" class="star ${n <= state.rating ? 'active' : ''}" data-rating="${n}">★</button>`).join('')}</div></div></div><div class="button-row"><button class="primary-button" type="button" data-action="next-mission">다음: 랜덤 미션 보기 →</button><button class="secondary-button" type="button" data-view="home">취소</button></div></form>`, 'record');
 }
-function missionView() { return layout(`<section class="page-title"><div><p class="eyebrow">TODAY'S RANDOM MISSION</p><h1>책을 읽고, 생각을 남겨요.</h1><p class="subtitle"><strong>${esc(state.pendingBook.title)}</strong>을(를) 읽고 다음 질문에 답해 보세요.</p></div></section><section class="mission-layout"><aside class="mission-quote"><div><span class="badge">${esc(state.mission[0])}</span><div class="big" style="margin-top:26px">${esc(state.mission[1])}</div></div><button class="secondary-button" type="button" data-action="reroll">다른 미션 뽑기</button></aside><form class="form-card" id="mission-form"><div class="field"><label for="answer">나의 답변</label><textarea id="answer" required minlength="10" maxlength="2000" placeholder="책을 읽고 떠오른 생각을 자유롭게 적어보세요. (10자 이상)"></textarea></div><p class="notice">답변은 10자 이상 써 주세요. 하루에 최대 5권까지 기록할 수 있어요. 답변을 저장하면 독서 기록이 Supabase에 저장되고 스티커 1개를 받아요.</p><button class="primary-button" type="submit">결과를 Supabase에 저장하고 스티커 받기</button></form></section>`, 'record'); }
+function missionView() { return layout(`<section class="page-title"><div><p class="eyebrow">TODAY'S RANDOM MISSION</p><h1>책을 읽고, 생각을 남겨요.</h1><p class="subtitle"><strong>${esc(state.pendingBook.title)}</strong>을(를) 읽고 다음 질문에 답해 보세요.</p></div></section><section class="mission-layout"><aside class="mission-quote"><div><span class="badge">${esc(state.mission[0])}</span><div class="big" style="margin-top:26px">${esc(state.mission[1])}</div></div><button class="secondary-button" type="button" data-action="reroll">다른 미션 뽑기</button></aside><form class="form-card" id="mission-form"><div class="field"><label for="answer">나의 답변</label><textarea id="answer" required minlength="10" maxlength="2000" placeholder="책을 읽고 떠오른 생각을 자유롭게 적어보세요. (10자 이상)"></textarea></div><p class="notice">답변은 10자 이상 써 주세요. 하루에 최대 5권까지 기록할 수 있어요. 답변을 저장하면 독서 기록이 안전하게 저장되고 스티커 1개를 받아요.</p><button class="primary-button" type="submit">저장하고 스티커 받기</button></form></section>`, 'record'); }
 function recordModal() {
   const r = state.selectedRecord;
   const editing = r && state.editingId === r.id;
@@ -287,6 +278,7 @@ function levelGiftNote(item) {
 }
 function levelUp() { const gained = state.levelUp || level(); const next = LEVELS.find(item => item[0] > data.records.length); const confetti = Array.from({ length: 28 }, (_, index) => `<i class="confetti-piece piece-${index % 7}" style="--delay:${(index % 7) * 0.08}s;--x:${(index * 37) % 94}%"></i>`).join(''); return layout(`<section class="level-up-card"><div class="confetti" aria-hidden="true">${confetti}</div><div class="level-up-icon">${levelIcon(gained)}</div><p class="eyebrow">LEVEL UP!</p><h1>축하해요!</h1><h2>LV.${LEVELS.indexOf(gained)} ${esc(gained[1])} 달성</h2><p class="subtitle">책 ${data.records.length}권을 읽고 미션을 완성했어요.<br>나의 독서 실력이 한 단계 자랐습니다.</p>${levelGiftNote(gained)}<div class="level-up-progress"><span>${next ? `다음 레벨까지 ${next[0] - data.records.length}권` : '최고 레벨 달성!'}</span></div><div class="button-row" style="justify-content:center"><button class="primary-button" data-view="growth">성장 현황 보기</button><button class="secondary-button" data-view="record">다음 책 기록하기</button></div></section>`, 'growth'); }
 function render() { document.querySelector('#app').innerHTML = data.nickname ? (state.view === 'home' ? home() : state.view === 'record' ? (state.mission ? missionView() : recordForm()) : state.view === 'history' ? history() : state.view === 'growth' ? growth() : state.view === 'success' ? success() : state.view === 'levelup' ? levelUp() : state.view === 'room' ? roomView() : state.view === 'shelf' ? shelf() : home()) : auth(); }
+// ===== 버튼·폼 이벤트 처리 (클릭, 제출, 입력) =====
 function startMission(form) {
   if (!form.reportValidity()) return;
   const dup = findDuplicateRecord(form.querySelector('#title').value);
@@ -306,7 +298,7 @@ document.addEventListener('click', async e => {
   const view = e.target.closest('[data-view]')?.dataset.view;
   if (view) { state.view = view; state.pendingBook = null; state.mission = null; state.selectedRecord = null; if (view === 'record') { state.rating = 0; state.bookQuery = ''; state.bookAuthor = ''; state.selectedBookInfo = null; state.bookDescriptionExpanded = false; state.bookResults = []; state.bookSearchError = ''; } render(); if (view === 'home') loadHomeRecommendations(); return; }
   const action = e.target.closest('[data-action]')?.dataset.action;
-  if (action === 'search-books') { const query = document.querySelector('#title').value.trim(); if (query.length < 2) { state.bookSearchError = '두 글자 이상 책 제목을 입력해 주세요.'; render(); return; } state.bookQuery = query; try { await searchNaverBooks(query); } catch (error) { state.bookSearchError = error.message || '도서를 검색하지 못했어요.'; } finally { state.bookSearching = false; render(); } return; }
+  if (action === 'search-books') { const query = document.querySelector('#title').value.trim(); if (query.length < 2) { state.bookSearchError = '두 글자 이상 책 제목을 입력해 주세요.'; render(); return; } state.bookQuery = query; try { await searchBooks(query); } catch (error) { state.bookSearchError = error.message || '도서를 검색하지 못했어요.'; } finally { state.bookSearching = false; render(); } return; }
   if (action === 'select-book') { const index = Number(e.target.closest('[data-book-index]')?.dataset.bookIndex); const book = state.bookResults[index]; if (book) { state.bookQuery = book.title; state.bookAuthor = book.author; state.selectedBookInfo = book; state.bookDescriptionExpanded = false; state.bookResults = []; state.bookSearchError = ''; render(); } return; }
   if (action === 'toggle-book-description') { state.bookDescriptionExpanded = !state.bookDescriptionExpanded; render(); if (state.bookDescriptionExpanded) requestAnimationFrame(() => document.querySelector('.selected-book-preview')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })); return; }
   if (action === 'open-record') { const id = e.target.closest('[data-record-id]')?.dataset.recordId; state.editingId = null; state.selectedRecord = data.records.find(record => String(record.id) === String(id)) || null; render(); markFeedbackSeen(state.selectedRecord); return; }
@@ -400,21 +392,9 @@ document.addEventListener('change', e => {
 });
 
 // 독서 달력 · 주 단위 연속 기록 · 선생님 칭찬
-function localDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
-function parseLocalDate(text) { const [y, m, d] = String(text).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); }
-function weekStartString(date) { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return localDateString(d); }
 function readingDays() { return new Set(data.records.map(r => String(r.read_date || r.date || '').slice(0, 10)).filter(Boolean)); }
-function weeklyStreak() {
-  const weeks = new Set([...readingDays()].map(day => weekStartString(parseLocalDate(day))));
-  const cursor = parseLocalDate(weekStartString(new Date()));
-  const shift = () => cursor.setDate(cursor.getDate() - 7);
-  const key = () => localDateString(cursor);
-  const thisWeekDone = weeks.has(key());
-  if (!thisWeekDone) shift();
-  let count = 0;
-  while (weeks.has(key())) { count += 1; shift(); }
-  return { count, thisWeekDone };
-}
+function weeklyStreak() { return weeklyStreakFor(readingDays()); }
+// ===== 홈/성장: 캘린더·연속 기록·선생님 도장·학급 챌린지 =====
 function calendarPanel() {
   const offset = state.calOffset || 0;
   const base = new Date();
@@ -460,9 +440,8 @@ async function loadCommunity() {
   if (!ranking.error) data.ranking = ranking.data || [];
   if (!bonus.error) data.bonus = Number(bonus.data) || 0;
 }
-const stampBonus = () => Math.floor(Object.keys(data.feedback || {}).length / 3);
-function stickerCount() { return data.records.length + (data.bonus || 0) + stampBonus(); }
-function shortDate(text) { const [, m, d] = String(text).slice(0, 10).split('-'); return `${Number(m)}/${Number(d)}`; }
+const stampBonus = () => stampBonusFor(Object.keys(data.feedback || {}).length);
+function stickerCount() { return stickerTotal(data.records.length, data.bonus, Object.keys(data.feedback || {}).length); }
 function challengeCard(item) {
   const target = Number(item.target_books), progress = Number(item.progress), mine = Number(item.my_count);
   const pct = Math.min(100, Math.round((progress / target) * 100));
@@ -501,6 +480,7 @@ state.selectedObj = null;
 let roomBusy = false;
 let roomDrag = null;
 
+// ===== 내 방: 방 꾸미기(아이템 구매·배치·드래그) 데이터 불러오기와 화면 =====
 async function loadRoom() {
   data.room = { ready: false, items: [], owned: [], placed: {}, objects: [] };
   if (!sb) return;
@@ -726,6 +706,7 @@ const SHELF_ROWS_PER_PAGE = 2;
 const WISH_PREVIEW = 5;
 const WISHLIST_MAX = 50;
 data.wishlist = []; data.wishlistReady = false;
+// ===== 내 책장: 책장 보기와 읽고 싶은 책 목록 =====
 async function loadWishlist() {
   if (!sb) return;
   const { data: rows, error } = await sb.from('wishlist_books').select('id,title,author,publisher,cover_image,description,created_at').order('created_at', { ascending: false });
